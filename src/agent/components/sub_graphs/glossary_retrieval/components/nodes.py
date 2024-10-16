@@ -1,4 +1,12 @@
+from agent.components.sub_graphs.retriever_config import setup_chroma_vector_store, setup_retriever
+from agent.components.sub_graphs.endpoint_retrieval.components.chains import retrieval_grader
 
+try:
+    glossary_vector_store = setup_chroma_vector_store("obp_glossary")
+except:
+    print("Glossary vector store not found, check configuration")
+
+glossary_retriever = setup_retriever(k=8, vector_store=glossary_vector_store)
 
 def retrieve_glossary(state):
     """

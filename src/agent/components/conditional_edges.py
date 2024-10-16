@@ -1,3 +1,6 @@
+from agent.components.states import OpeyGraphState
+from agent.components.chains import retrieval_decider_chain
+
 def run_retrieval_decider(state: OpeyGraphState):
     state["current_state"] = "retrieval_decider"
     messages = state["messages"]
@@ -5,7 +8,7 @@ def run_retrieval_decider(state: OpeyGraphState):
     
     print(f"Retrieval decider: {output}")
     
-    if output.context_needed:
+    if output.context_needed: # type: ignore
         print("Further context needed")
         if output.retrieve_endpoints and output.retrieve_glossary:
             return ["retrieve_endpoints", "retreive_glossary"]

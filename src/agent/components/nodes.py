@@ -1,3 +1,11 @@
+import json
+
+from pprint import pprint
+
+from agent.components.chains import opey_agent, query_formulator_chain
+from agent.components.sub_graphs.endpoint_retrieval.endpoint_retrieval_graph import endpoint_retrieval_graph
+from agent.components.sub_graphs.glossary_retrieval.glossary_retrieval_graph import glossary_retrieval_graph
+
 def run_endpoint_retrieval(state):
     """
     Run vector db retrieval workflow for endpoints.
@@ -14,7 +22,7 @@ def run_endpoint_retrieval(state):
     # Come up with a query from the messages
     output = query_formulator_chain.invoke({"messages": messages, "retrieval_mode": "endpoint_retrieval"})
     inputs = {"question": output.query}
-    for output in self_RAG_graph.stream(inputs):
+    for output in endpoint_retrieval_graph.stream(inputs):
         for _, _ in output.items():
             pass 
         pprint("--------------------")
@@ -64,7 +72,7 @@ def run_glossary_retrieval(state):
     
 def run_opey(state):
     messages = state["messages"]
-    aggregated_context = state["aggregated_context"]
+    aggregated_context = state.get("aggregated_context", "")
     response = opey_agent.invoke({"messages": messages, "aggregated_context": aggregated_context})
     print(response)
     return {"messages": response}

@@ -1,6 +1,7 @@
 from typing_extensions import TypedDict
 from typing import List, Annotated
-from ./reducers import add_docs
+from agent.components.sub_graphs.endpoint_retrieval.components.reducers import add_docs
+from langgraph.graph import MessagesState
 
 class SelfRAGGraphState(TypedDict):
     """

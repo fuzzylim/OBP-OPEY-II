@@ -108,17 +108,17 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
 
         # Yield messages written to the graph state after node execution finishes.
 
-        print(f"\nEvent: \n{event['metadata'].get('langgraph_node', '')}\n")
+        
         if (
             event["event"] == "on_chain_end"
             # on_chain_end gets called a bunch of times in a graph execution
             # This filters out everything except for "graph node finished"
             and any(t.startswith("graph:step:") for t in event.get("tags", []))
             and "messages" in event["data"]["output"]
-            and event['metadata']['langgraph_node'] == 'opey'
+            #and event['metadata']['langgraph_node'] == 'opey'
         ):
             new_messages = event["data"]["output"]["messages"]
-            print(f"New messages: {type(new_messages)}")
+            print(f"New messages: {new_messages}")
             if not isinstance(new_messages, list):
                 new_messages = [new_messages]
             for message in new_messages:
@@ -138,8 +138,11 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
         if (
             event["event"] == "on_chat_model_stream"
             and user_input.stream_tokens
-            and "llama_guard" not in event.get("tags", [])
+            # NOTE: not sure that the transform_query here should be hard-coded, might want to pass
+            # a list of nodes to ignore in the StreamingInput
+            and event['metadata'].get('langgraph_node', '') != "transform_query"
         ):
+            print(f"\nEvent: \n{event['metadata'].get('langgraph_node', '')}\n")
             content = _remove_tool_calls(event["data"]["chunk"].content)
             if content:
                 # Empty content in the context of OpenAI usually means

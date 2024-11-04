@@ -188,7 +188,7 @@ async def draw_messages(
             st.write(msg)
             st.stop()
 
-        print(msg.type)
+        
         match msg.type:
             # A message from the user, the easiest case
             case "human":
@@ -217,9 +217,10 @@ async def draw_messages(
                             streaming_placeholder = None
                         else:
                             st.write(msg.content)
+                    
+                    #if msg.original["metadata"]["langgraph_node"] in ["retrieve_endpoints"]
 
                     if msg.tool_calls:
-                        print(msg)
                         # Create a status container for each tool call and store the
                         # status container by ID to ensure results are mapped to the
                         # correct status container.

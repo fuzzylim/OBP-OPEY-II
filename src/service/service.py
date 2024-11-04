@@ -15,6 +15,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
 
 from agent import opey_graph
+from agent.components.chains import RetrievalDeciderOutput, QueryFormulatorOutput
 from schema import (
     ChatMessage,
     Feedback,
@@ -101,32 +102,41 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
     agent: CompiledStateGraph = app.state.agent
     kwargs, run_id = _parse_input(user_input)
 
+    print(f"------------START STREAM-----------\n\n")
     # Process streamed events from the graph and yield messages over the SSE stream.
     async for event in agent.astream_events(**kwargs, version="v2"):
         if not event:
             continue
-
-        # Yield messages written to the graph state after node execution finishes.
-
         
+        # QueryFormulatorOutput means that we are running retrieval, so we send a formatted AIMessage with a tool_call
+        if (
+            event["event"] == "on_chain_end"
+            and isinstance(event["data"]["output"], (QueryFormulatorOutput))
+        ):
+            
+            printable_event = event.copy()
+            event_data = printable_event['data']
+            if "aggregated_context" in printable_event["data"]:
+                printable_event["data"]["aggregated_context"] = printable_event["data"]["aggregated_context"][:10] + "(...)" + printable_event["data"]["aggregated_context"][-10:]
+            
+            yield f"data: {json.dumps({'type': 'event', 'content': f'{event_data}'})}\n\n"
+        # Yield messages written to the graph state after node execution finishes.
         if (
             event["event"] == "on_chain_end"
             # on_chain_end gets called a bunch of times in a graph execution
             # This filters out everything except for "graph node finished"
             and any(t.startswith("graph:step:") for t in event.get("tags", []))
             and "messages" in event["data"]["output"]
-            #and event['metadata']['langgraph_node'] == 'opey'
         ):
             new_messages = event["data"]["output"]["messages"]
-            print(f"New messages: {new_messages}")
             if not isinstance(new_messages, list):
                 new_messages = [new_messages]
             for message in new_messages:
+                print(f"{message.pretty_print()}")
                 try:
                     chat_message = ChatMessage.from_langchain(message)
                     chat_message.run_id = str(run_id)
                 except Exception as e:
-                    #print("Data causing error:", message)
                     yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing message: {e}'})}\n\n"
                     continue
                 # LangGraph re-sends the input message, which feels weird, so drop it
@@ -142,7 +152,6 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
             # a list of nodes to ignore in the StreamingInput
             and event['metadata'].get('langgraph_node', '') != "transform_query"
         ):
-            print(f"\nEvent: \n{event['metadata'].get('langgraph_node', '')}\n")
             content = _remove_tool_calls(event["data"]["chunk"].content)
             if content:
                 # Empty content in the context of OpenAI usually means

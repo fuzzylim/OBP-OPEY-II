@@ -198,7 +198,7 @@ class AgentClient:
                 print(f"{response.url}")
                 if response.status_code != 200:
                     content = await response.aread()
-                    raise Exception(f"Error: {response.status_code} - {content.decode("utf-8")}")
+                    raise Exception(f"Error: {response.status_code} - {content.decode('utf-8')}")
                 async for line in response.aiter_lines():
                     if line.strip():
                         parsed = self._parse_stream_line(line)

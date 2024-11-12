@@ -184,6 +184,7 @@ async def draw_messages(
             streaming_placeholder.write(streaming_content)
             continue
         if not isinstance(msg, ChatMessage):
+            st.write(f"{type(msg)}, {type(ChatMessage)}")
             st.error(f"Unexpected message type: {type(msg)}")
             st.write(msg)
             st.stop()
@@ -242,7 +243,7 @@ async def draw_messages(
                                 st.write(tool_result)
                                 st.stop()
                             if tool_result.type != "tool":
-                                st.error(f"Unexpected ChatMessage type: {tool_result.type}")
+                                st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
                                 st.write(tool_result)
                                 st.stop()
 

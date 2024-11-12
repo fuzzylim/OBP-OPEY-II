@@ -4,7 +4,8 @@ import requests
 from langchain_core.tools import tool
 
 from agent.utils.config import obp_base_url, get_headers
-
+from agent.components.sub_graphs.endpoint_retrieval.endpoint_retrieval_graph import endpoint_retrieval_graph
+from agent.components.sub_graphs.glossary_retrieval.glossary_retrieval_graph import glossary_retrieval_graph
 
 @tool
 def obp_requests(method: str, path: str, body: str):
@@ -23,3 +24,8 @@ def obp_requests(method: str, path: str, body: str):
         return response.json()
     else:
         return {"error": f"dangerous method {method} not allowed"}
+
+# Define endpoint retrieval tool nodes
+
+endpoint_retrieval_tool = endpoint_retrieval_graph.as_tool(name="retrieve_endpoints")
+glossary_retrieval_tool = glossary_retrieval_graph.as_tool(name="retrieve_glossary")

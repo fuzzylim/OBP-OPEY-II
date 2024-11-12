@@ -15,7 +15,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
 
 from agent import opey_graph
-from agent.components.chains import RetrievalDeciderOutput, QueryFormulatorOutput
+from agent.components.chains import QueryFormulatorOutput
 from schema import (
     ChatMessage,
     Feedback,
@@ -109,17 +109,42 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
             continue
         
         # QueryFormulatorOutput means that we are running retrieval, so we send a formatted AIMessage with a tool_call
-        if (
-            event["event"] == "on_chain_end"
-            and isinstance(event["data"]["output"], (QueryFormulatorOutput))
-        ):
-            
+        # Pretty sure this is the worst piece of code I've ever written, but we're making it work first
+        if event["event"] == "on_chain_end" and "retrieval_call_id" in event["metadata"].keys() and event["name"] == "return_documents":
             printable_event = event.copy()
-            event_data = printable_event['data']
-            if "aggregated_context" in printable_event["data"]:
-                printable_event["data"]["aggregated_context"] = printable_event["data"]["aggregated_context"][:10] + "(...)" + printable_event["data"]["aggregated_context"][-10:]
+            print(f"Event: {printable_event}", '\n\n')
+            retrieval_completion_message = ChatMessage(type="tool", content=event["data"]["output"]["relevant_documents"], retrieval_call_id=f"{event['metadata']['retrieval_call_id']}", run_id=printable_event['run_id'], original=dict(event))
+            yield f"data: {json.dumps({'type': 'message', 'content': retrieval_completion_message.model_dump()})}\n\n"
+        
+        elif event["event"] == "on_chain_end" and "retrieval_call_id" in event["metadata"].keys() and event["name"] == "grade_documents":
+            printable_event = event.copy()
+            print(f"Event: {printable_event}", '\n\n')
+            retrieval_completion_message = ChatMessage(type="tool", content=event["data"]["output"]["relevant_documents"], retrieval_call_id=f"{event['metadata']['retrieval_call_id']}", run_id=printable_event['run_id'], original=dict(event))
+            yield f"data: {json.dumps({'type': 'message', 'content': retrieval_completion_message.model_dump()})}\n\n"
+        
+        if event["event"] == "on_chain_start" and "retrieval_call_id" in event["metadata"].keys() and any(t.startswith("graph:step:1") for t in event.get("tags", [])):
+            printable_event = event.copy()
             
-            yield f"data: {json.dumps({'type': 'event', 'content': f'{event_data}'})}\n\n"
+            print(f"Event: {printable_event}", '\n\n')
+            retrieval_call = RetrievalCall(name=event["metadata"]["retrieval_call_name"], id=event['metadata']['retrieval_call_id'])
+            retrieval_call_message = ChatMessage(type="ai", content="Retrieval completed", retrieval_calls=[retrieval_call], run_id=printable_event['run_id'], original=dict(event))
+            yield f"data: {json.dumps({'type': 'message', 'content': retrieval_call_message.model_dump()})}\n\n"
+            continue
+        # if (
+        #     event["event"] == "on_chain_end"
+        #     and isinstance(event["data"]["output"], (QueryFormulatorOutput))
+        # ):
+        #     printable_event = event.copy()
+        #     event_data = printable_event['data']
+            
+        #     try: 
+        #         retrieval_message = ChatMessage(type="ai", content=event_data['output'].query, retrieval_calls=[event_data['input']['retrieval_mode']], run_id=printable_event['run_id'], original=dict(event))
+        #     except Exception as e:
+        #         yield f"data: {json.dumps({'type': 'error', 'content': f'Error parsing retrieval message: {e}'})}\n\n"
+        #         continue
+
+        #     yield f"data: {json.dumps({'type': 'event', 'content': retrieval_message.model_dump()})}\n\n"
+        #     continue
         # Yield messages written to the graph state after node execution finishes.
         if (
             event["event"] == "on_chain_end"

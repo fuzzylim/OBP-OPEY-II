@@ -1,5 +1,6 @@
 from agent.components.sub_graphs.retriever_config import setup_chroma_vector_store, setup_retriever
 from agent.components.sub_graphs.endpoint_retrieval.components.chains import retrieval_grader
+from agent.components.sub_graphs.glossary_retrieval.components.states import SelfRAGGraphState, OutputState, InputState
 
 try:
     glossary_vector_store = setup_chroma_vector_store("obp_glossary")
@@ -71,3 +72,8 @@ def grade_documents_glossary(state):
     #print("Documents: \n", "\n".join(f"{doc.metadata["title"]}" for doc in filtered_docs))
     return {"documents": documents, "relevant_documents": filtered_docs, "question": question, "retry_query": retry_query}
               
+def return_documents(state) -> OutputState:
+    """Return the relevant documents"""
+    print("---RETRUN RELEVANT DOCUMENTS---")
+    relevant_documents = state["relevant_documents"]
+    return {"relevant_documents": relevant_documents}

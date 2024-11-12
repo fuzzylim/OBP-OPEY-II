@@ -52,7 +52,6 @@ class StreamInput(UserInput):
         default=True,
     )
 
-
 class AgentResponse(BaseModel):
     """Response from the agent when called via /invoke."""
 

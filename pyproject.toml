@@ -17,6 +17,7 @@ uuid = "^1.30"
 fastapi = "^0.115.4"
 langsmith = "^0.1.139"
 langgraph = "^0.2.44"
+protobuf = "^5.28.3"
 
 [build-system]
 requires = ["poetry-core"]

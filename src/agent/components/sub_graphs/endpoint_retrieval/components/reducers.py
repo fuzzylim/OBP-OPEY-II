@@ -13,6 +13,7 @@ def add_docs(left: List[Document], right: List[Document]) -> List[Document]:
         
     docs = left.copy()
 
+    print(f"left: {left}\n\nright: {right}\n\n")
     left_id_to_idx = {doc.metadata["document_id"]: idx for idx, doc in enumerate(docs)}
     for doc in right:
         idx = left_id_to_idx.get(doc.metadata["document_id"])

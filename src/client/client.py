@@ -90,6 +90,7 @@ class AgentClient:
 
     def _parse_stream_line(self, line: str) -> ChatMessage | str | None:
         line = line.strip()
+        print(line)
         if line.startswith("data: "):
             data = line[6:]
             if data == "[DONE]":

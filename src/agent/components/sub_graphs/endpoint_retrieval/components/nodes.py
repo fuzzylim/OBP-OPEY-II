@@ -1,9 +1,17 @@
+import os
+
 from agent.components.sub_graphs.endpoint_retrieval.components.states import OutputState
 from agent.components.sub_graphs.retriever_config import setup_chroma_vector_store, setup_retriever
 from agent.components.sub_graphs.endpoint_retrieval.components.chains import retrieval_grader, endpoint_question_rewriter
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Setup vector store and retriever
+retriever_batch_size = os.getenv("ENDPOINT_RETRIEVER_BATCH_SIZE", 5)
 
 endpoint_vector_store = setup_chroma_vector_store("obp_endpoints")
-endpoint_retriever = setup_retriever(k=5, vector_store=endpoint_vector_store)
+endpoint_retriever = setup_retriever(k=8, vector_store=endpoint_vector_store)
 
 def retrieve_endpoints(state):
     """

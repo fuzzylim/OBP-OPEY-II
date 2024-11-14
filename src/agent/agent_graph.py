@@ -30,7 +30,7 @@ opey_workflow.add_conditional_edges(
     tools_condition,
     {
         "tools": "retrieval_tools",
-        "END": "opey"
+        "__end__": "opey"
     }
 )
 opey_workflow.add_conditional_edges(

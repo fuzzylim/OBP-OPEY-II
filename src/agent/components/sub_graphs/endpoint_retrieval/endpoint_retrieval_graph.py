@@ -28,4 +28,4 @@ workflow.add_edge("transform_query", "retrieve_endpoints")
 workflow.add_edge("return_documents", END)
 
 # Compile
-endpoint_retrieval_graph = workflow.compile()
+endpoint_retrieval_graph = workflow.compile(checkpointer=False)

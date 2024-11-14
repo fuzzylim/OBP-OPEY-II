@@ -34,7 +34,7 @@ class SelfRAGGraphState(TypedDict):
     total_retries: int = 0
     rewritten_question: str
         
-class OutputState(MessagesState):
+class OutputState(TypedDict):
     """
     Graph returns relevant endpoints
     """

@@ -16,4 +16,4 @@ glossary_retrieval_workflow.add_edge("retrieve_items", "grade_documents")
 glossary_retrieval_workflow.add_edge("grade_documents", "return_documents")
 glossary_retrieval_workflow.add_edge("return_documents", END)
 
-glossary_retrieval_graph = glossary_retrieval_workflow.compile()
+glossary_retrieval_graph = glossary_retrieval_workflow.compile(checkpointer=False)

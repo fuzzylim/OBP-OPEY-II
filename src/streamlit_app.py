@@ -235,9 +235,11 @@ async def draw_messages(
                             status.write("Input:")
                             status.write(tool_call["args"])
 
+                        print(f"Waiting for {len(call_results)} call(s) to finish\n")
                         # Expect one ToolMessage for each tool call.
                         for _ in range(len(call_results)):
                             tool_result: ChatMessage | str = await anext(messages_agen)
+                            print(tool_result)
                             if isinstance(tool_result, str):
                                 st.error(f"Tool returned is a string {tool_result}")
                                 st.write(tool_result)

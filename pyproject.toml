@@ -17,7 +17,9 @@ uuid = "^1.30"
 fastapi = "^0.115.4"
 langsmith = "^0.1.139"
 langgraph = "^0.2.44"
-protobuf = "^5.28.3"
+protobuf = "3.20.*"
+langchain-anthropic = "^0.3.0"
+langchain-ollama = "^0.2.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -4,6 +4,7 @@ from langchain_core.prompts import SystemMessagePromptTemplate, ChatPromptTempla
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from agent.utils.model_factory import get_llm
 from agent.components.tools import obp_requests, glossary_retrieval_tool, endpoint_retrieval_tool
 
 from pydantic import BaseModel, Field
@@ -26,7 +27,7 @@ prompt = ChatPromptTemplate.from_messages(
 #prompt = hub.pull("opey_main_agent")
 
 # LLM
-llm = ChatOpenAI(model="gpt-4o", temperature=0).bind_tools([obp_requests])
+llm = get_llm(size='medium', temperature=0.7).bind_tools([obp_requests])
 
 # Chain
 opey_agent = prompt | llm 
@@ -58,7 +59,7 @@ retrieval_decider_prompt_template = ChatPromptTemplate.from_messages(
     ]
 )
 
-retrieval_decider_llm = ChatOpenAI(model="gpt-4o", temperature=0).bind_tools([glossary_retrieval_tool, endpoint_retrieval_tool])
+retrieval_decider_llm = get_llm(size='medium', temperature=0).bind_tools([glossary_retrieval_tool, endpoint_retrieval_tool])
 retrieval_decider_chain = retrieval_decider_prompt_template | retrieval_decider_llm
 
 
@@ -73,6 +74,110 @@ The query needs to be in the form of a natural sounding question that conveys th
 
 If the mode is glossary_retrieval, optimise the query to search a glossary of technical documents for the Open Bank Project (OBP)
 If the mode is endpoint_retrieval, optimise the query to search through swagger schemas of different endpoints on the Open Bank Project (OBP) API
+
+Here are a list of API endpoint tags that you can use to help you write the query. Each tag is a keyword that is associated with a group of endpoints.
+Identify the most relevant tags and use them in the query to help the vector search find the most relevant endpoints.
+    
+    - Old-Style
+    - Transaction-Request
+    - API
+    - Bank
+    - Account
+    - Account-Access
+    - Direct-Debit
+    - Standing-Order
+    - Account-Metadata
+    - Account-Application
+    - Account-Public
+    - Account-Firehose
+    - FirehoseData
+    - PublicData
+    - PrivateData
+    - Transaction
+    - Transaction-Firehose
+    - Counterparty-Metadata
+    - Transaction-Metadata
+    - View-Custom
+    - View-System
+    - Entitlement
+    - Role
+    - Scope
+    - OwnerViewRequired
+    - Counterparty
+    - KYC
+    - Customer
+    - Onboarding
+    - User
+    - User-Invitation
+    - Customer-Meeting
+    - Experimental
+    - Person
+    - Card
+    - Sandbox
+    - Branch
+    - ATM
+    - Product
+    - Product-Collection
+    - Open-Data
+    - Consumer
+    - Data-Warehouse
+    - FX
+    - Customer-Message
+    - Metric
+    - Documentation
+    - Berlin-Group
+    - Signing Baskets
+    - UKOpenBanking
+    - MXOpenFinance
+    - Aggregate-Metrics
+    - System-Integrity
+    - Webhook
+    - Mocked-Data
+    - Consent
+    - Method-Routing
+    - WebUi-Props
+    - Endpoint-Mapping
+    - Rate-Limits
+    - Counterparty-Limits
+    - Api-Collection
+    - Dynamic-Resource-Doc
+    - Dynamic-Message-Doc
+    - DAuth
+    - Dynamic
+    - Dynamic-Entity
+    - Dynamic-Entity-Manage
+    - Dynamic-Endpoint
+    - Dynamic-Endpoint-Manage
+    - JSON-Schema-Validation
+    - Authentication-Type-Validation
+    - Connector-Method
+    - Berlin-Group-M
+    - PSD2
+    - Account Information Service (AIS)
+    - Confirmation of Funds Service (PIIS)
+    - Payment Initiation Service (PIS)
+    - Directory
+    - UK-AccountAccess
+    - UK-Accounts
+    - UK-Balances
+    - UK-Beneficiaries
+    - UK-DirectDebits
+    - UK-DomesticPayments
+    - UK-DomesticScheduledPayments
+    - UK-DomesticStandingOrders
+    - UK-FilePayments
+    - UK-FundsConfirmations
+    - UK-InternationalPayments
+    - UK-InternationalScheduledPayments
+    - UK-InternationalStandingOrders
+    - UK-Offers
+    - UK-Partys
+    - UK-Products
+    - UK-ScheduledPayments
+    - UK-StandingOrders
+    - UK-Statements
+    - UK-Transactions
+    - AU-Banking
 """
 
 query_formulator_prompt_template = ChatPromptTemplate.from_messages(
@@ -82,5 +187,5 @@ query_formulator_prompt_template = ChatPromptTemplate.from_messages(
     ]
 )
 
-query_formulator_llm = ChatOpenAI(model="gpt-4o", temperature=0).with_structured_output(QueryFormulatorOutput)
+query_formulator_llm = get_llm(size='medium', temperature=0).with_structured_output(QueryFormulatorOutput)
 query_formulator_chain = query_formulator_prompt_template | query_formulator_llm

@@ -89,7 +89,7 @@ async def main() -> None:
 
         "[View the source code](https://github.com/JoshuaC215/agent-service-toolkit)"
         st.caption(
-            "Made with :material/favorite: by [Joshua](https://www.linkedin.com/in/joshua-k-carroll/) in Oakland"
+            "Made with :material/favorite: by [Nemo](https://www.linkedin.com/in/joshua-k-carroll/) in Oakland"
         )
 
     # Draw existing messages
@@ -98,7 +98,7 @@ async def main() -> None:
     messages: list[ChatMessage] = st.session_state.messages
 
     if len(messages) == 0:
-        WELCOME = "Hello! I'm an AI-powered research assistant with web search and a calculator. I may take a few seconds to boot up when you send your first message. Ask me anything!"
+        WELCOME = "Hello, I'm Opey! A context informed AI assistant for the Open Bank Project API. Ask me anything about the API and I'll do my best to help you out."
         with st.chat_message("ai"):
             st.write(WELCOME)
 

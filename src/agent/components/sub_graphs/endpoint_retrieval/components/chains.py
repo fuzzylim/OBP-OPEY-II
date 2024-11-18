@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from agent.utils.model_factory import get_llm
 
 ### Document Grader chain
 # For a given document, assesses whether it is relevant to the user's query
@@ -15,7 +16,7 @@ class GradeDocuments(BaseModel):
         description="Documents are relevant to the question, 'yes' or 'no'"
     )
         
-llm = ChatOpenAI(model="gpt-4o-mini")
+llm = get_llm(size='small', temperature=0.1)
 
 llm_grader = llm.with_structured_output(GradeDocuments)
 
@@ -39,7 +40,7 @@ retrieval_grader = grader_prompt_template | llm_grader
 ### Question Re-writer
 # NOTE: we may not end up using this in subsequent versions. Have to run retrieval graph against evals (also have to make evals)
 # LLM
-llm = ChatOpenAI(model="gpt-4o-mini", temperature=0.7)
+llm = get_llm(size='small', temperature=0.7)
 
 # Prompt
 system = """You are a question re-writer that converts an input question to a better version that is designed to find endpoints\n 
@@ -47,7 +48,9 @@ system = """You are a question re-writer that converts an input question to a be
      Reword the question in such a way so that vector search could find endpoints that would help the user acheive their task.
      Try different keywords/synonyms and API jargon if needed.
      
-     Here are a list of API endpoint tags that you can use to help you re-write the question. Each tag is a keyword that is associated with a group of endpoints:
+     Here are a list of API endpoint tags that you can use to help you re-write the question. Each tag is a keyword that is associated with a group of endpoints.
+     Use the most relevant tags in the re-written question to help the vector search find the most relevant endpoints.
+        
         - Old-Style
         - Transaction-Request
         - API

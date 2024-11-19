@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 
+from PIL import Image
 from client import AgentClient
 from schema import ChatMessage
 
@@ -18,9 +19,12 @@ from schema import ChatMessage
 
 # The app heavily uses AgentClient to interact with the agent's FastAPI endpoints.
 
+OBP_favicon = Image.open("src/resources/favicon.ico")
+OBP_LOGO = Image.open("src/resources/OBP_full_web.png")
+OPEY_AVATAR = Image.open("src/resources/opey_avatar.png")
+OPEY_LOGO = Image.open("src/resources/opey_logo.png")
 
-APP_TITLE = "Agent Service Toolkit"
-APP_ICON = "🧰"
+APP_TITLE = "Opey Agent Service"
 
 
 @st.cache_resource
@@ -32,26 +36,25 @@ def get_agent_client() -> AgentClient:
 async def main() -> None:
     st.set_page_config(
         page_title=APP_TITLE,
-        page_icon=APP_ICON,
-        menu_items={},
+        page_icon=OBP_favicon,
     )
 
     # Hide the streamlit upper-right chrome
-    st.html(
-        """
-        <style>
-        [data-testid="stStatusWidget"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-            }
-        </style>
-        """,
-    )
-    if st.get_option("client.toolbarMode") != "minimal":
-        st.set_option("client.toolbarMode", "minimal")
-        await asyncio.sleep(0.1)
-        st.rerun()
+    # st.html(
+    #     """
+    #     <style>
+    #     [data-testid="stStatusWidget"] {
+    #             visibility: hidden;
+    #             height: 0%;
+    #             position: fixed;
+    #         }
+    #     </style>
+    #     """,
+    # )
+    # if st.get_option("client.toolbarMode") != "minimal":
+    #     st.set_option("client.toolbarMode", "minimal")
+    #     await asyncio.sleep(0.1)
+    #     st.rerun()
 
     models = {
         "OpenAI GPT-4o-mini (streaming)": "gpt-4o-mini",
@@ -61,7 +64,9 @@ async def main() -> None:
     }
     # Config options
     with st.sidebar:
-        st.header(f"{APP_ICON} {APP_TITLE}")
+        st.image(OPEY_LOGO, width=300)
+        st.write(OBP_LOGO, width=200)
+        st.header(f"{APP_TITLE}")
         ""
         "Full toolkit for running an AI agent service built with LangGraph, FastAPI and Streamlit"
         with st.popover(":material/settings: Settings", use_container_width=True):
@@ -74,10 +79,6 @@ async def main() -> None:
             st.image(
                 "https://github.com/JoshuaC215/agent-service-toolkit/blob/main/media/agent_architecture.png?raw=true"
             )
-            "[View full size on Github](https://github.com/JoshuaC215/agent-service-toolkit/blob/main/media/agent_architecture.png)"
-            st.caption(
-                "App hosted on [Streamlit Cloud](https://share.streamlit.io/) with FastAPI service running in [Azure](https://learn.microsoft.com/en-us/azure/app-service/)"
-            )
 
         if st.button(":material/schema: Architecture", use_container_width=True):
             architecture_dialog()
@@ -87,9 +88,9 @@ async def main() -> None:
                 "Prompts, responses and feedback in this app are anonymously recorded and saved to LangSmith for product evaluation and improvement purposes only."
             )
 
-        "[View the source code](https://github.com/JoshuaC215/agent-service-toolkit)"
+        "[View the source code](https://github.com/OpenBankProject/OBP-Opey-II)"
         st.caption(
-            "Made with :material/favorite: by [Nemo](https://www.linkedin.com/in/joshua-k-carroll/) in Oakland"
+            "Made by [Nemo Godebski-Pedersen](https://www.linkedin.com/in/nemo-godebski-pedersen) with inspiration from [Agent Service Toolkit](https://github.com/JoshuaC215/agent-service-toolkit)"
         )
 
     # Draw existing messages
@@ -99,7 +100,7 @@ async def main() -> None:
 
     if len(messages) == 0:
         WELCOME = "Hello, I'm Opey! A context informed AI assistant for the Open Bank Project API. Ask me anything about the API and I'll do my best to help you out."
-        with st.chat_message("ai"):
+        with st.chat_message(name="ai", avatar=OPEY_AVATAR):
             st.write(WELCOME)
 
     # draw_messages() expects an async iterator over messages

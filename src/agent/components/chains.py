@@ -50,6 +50,8 @@ The query needs to be in the form of a natural sounding question that conveys th
 
 If the mode is glossary_retrieval, optimise the query to search a glossary of technical documents for the Open Bank Project (OBP)
 If the mode is endpoint_retrieval, optimise the query to search through swagger schemas of different endpoints on the Open Bank Project (OBP) API
+
+Only output the tool choice, do not reply to the user.
 """
 
 retrieval_decider_prompt_template = ChatPromptTemplate.from_messages(

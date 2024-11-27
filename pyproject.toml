@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "An Agentic Bot for the OpenBankProject API"
 authors = ["nemo <nemozak1@gmail.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.10"
@@ -20,6 +21,10 @@ langgraph = "^0.2.44"
 protobuf = "3.20.*"
 langchain-anthropic = "^0.3.0"
 langchain-ollama = "^0.2.0"
+weaviate = "^0.1.2"
+uvicorn = "^0.32.1"
+langgraph-checkpoint-sqlite = "^2.0.1"
+httpx = "^0.27.2"
 
 [build-system]
 requires = ["poetry-core"]

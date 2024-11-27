@@ -65,7 +65,6 @@ async def main() -> None:
     # Config options
     with st.sidebar:
         st.image(OPEY_LOGO, width=300)
-        st.write(OBP_LOGO, width=200)
         st.header(f"{APP_TITLE}")
         ""
         "Full toolkit for running an AI agent service built with LangGraph, FastAPI and Streamlit"
@@ -92,6 +91,7 @@ async def main() -> None:
         st.caption(
             "Made by [Nemo Godebski-Pedersen](https://www.linkedin.com/in/nemo-godebski-pedersen) with inspiration from [Agent Service Toolkit](https://github.com/JoshuaC215/agent-service-toolkit)"
         )
+        st.write(OBP_LOGO, width=50)
 
     # Draw existing messages
     if "messages" not in st.session_state:
@@ -108,7 +108,7 @@ async def main() -> None:
         for m in messages:
             yield m
 
-    await draw_messages(amessage_iter())
+    await draw_messages(amessage_iter(), thread_id=get_script_run_ctx().session_id)
 
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
@@ -121,7 +121,7 @@ async def main() -> None:
                 model=model,
                 thread_id=get_script_run_ctx().session_id,
             )
-            await draw_messages(stream, is_new=True)
+            await draw_messages(stream, thread_id=get_script_run_ctx().session_id, is_new=True)
         else:
             response = await agent_client.ainvoke(
                 message=user_input,
@@ -140,6 +140,7 @@ async def main() -> None:
 
 async def draw_messages(
     messages_agen: AsyncGenerator[ChatMessage | str, None],
+    thread_id: str,
     is_new: bool = False,
 ) -> None:
     """
@@ -226,6 +227,7 @@ async def draw_messages(
                         # Create a status container for each tool call and store the
                         # status container by ID to ensure results are mapped to the
                         # correct status container.
+                        print(f"Received tool calls: {msg.tool_calls}")
                         call_results = {}
                         for tool_call in msg.tool_calls:
                             status = st.status(
@@ -239,16 +241,30 @@ async def draw_messages(
                         print(f"Waiting for {len(call_results)} call(s) to finish\n")
                         # Expect one ToolMessage for each tool call.
                         for _ in range(len(call_results)):
-                            tool_result: ChatMessage | str = await anext(messages_agen)
-                            print(tool_result)
-                            if isinstance(tool_result, str):
+                            tool_result: ChatMessage | str | dict = await anext(messages_agen)
+
+                            if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
+                                st.write("Approve call to API?")
+                                st.write(tool_result["for"])
+                                agent_client = get_agent_client()
+                                st.write("will write after agent clinet got")
+                                if st.button("Approve"):
+                                    print("Approved request")
+                                    response = await agent_client.approve_request(thread_id, "approve")
+                                    tool_result: ChatMessage | str | dict = await anext(messages_agen)
+                                if st.button("Deny", type="primary"):
+                                    print("Denied request")
+                                    response = await agent_client.approve_request(thread_id, "deny")
+                                    tool_result: ChatMessage | str | dict = await anext(messages_agen)
+                            elif isinstance(tool_result, str):
                                 st.error(f"Tool returned is a string {tool_result}")
                                 st.write(tool_result)
                                 st.stop()
-                            if tool_result.type != "tool":
+                            elif tool_result.type != "tool":
                                 st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
                                 st.write(tool_result)
                                 st.stop()
+
 
                             # Record the message if it's new, and update the correct
                             # status container with the result

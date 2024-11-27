@@ -1,3 +1,4 @@
+from concurrent.futures import thread
 from typing import Any, Literal
 
 from langchain_core.messages import (
@@ -172,3 +173,13 @@ class Feedback(BaseModel):
 
 class FeedbackResponse(BaseModel):
     status: Literal["success"] = "success"
+
+class ToolCallApproval(BaseModel):
+    approval: Literal["approve", "deny"] = Field(
+        description="Approval status for the tool call.",
+    )
+    thread_id: str | None = Field(
+        description="Thread ID to persist and continue a multi-turn conversation.",
+        default=None,
+        examples=["847c6285-8fc9-4560-a83f-4e6285809254"],
+    )

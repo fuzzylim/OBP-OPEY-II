@@ -6,6 +6,7 @@ from schema.schema import (
     StreamInput,
     UserInput,
     convert_message_content_to_string,
+    ToolCallApproval,
 )
 
 __all__ = [
@@ -16,4 +17,5 @@ __all__ = [
     "Feedback",
     "FeedbackResponse",
     "convert_message_content_to_string",
+    "ToolCallApproval",
 ]

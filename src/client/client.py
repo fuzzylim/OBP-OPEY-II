@@ -1,11 +1,12 @@
+from concurrent.futures import thread
 import json
 import os
 from collections.abc import AsyncGenerator, Generator
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 
-from schema import ChatMessage, Feedback, StreamInput, UserInput
+from schema import ChatMessage, Feedback, StreamInput, UserInput, ToolCallApproval
 
 
 class AgentClient:
@@ -109,6 +110,9 @@ class AgentClient:
                 case "token":
                     # Yield the str token directly
                     return parsed["content"]
+                case "approval_request":
+                    # Yield the approval request directly
+                    return parsed
                 case "error":
                     raise Exception(parsed["content"])
         return None
@@ -195,8 +199,6 @@ class AgentClient:
                 headers=self._headers,
                 timeout=self.timeout,
             ) as response:
-                
-                print(f"{response.url}")
                 if response.status_code != 200:
                     content = await response.aread()
                     raise Exception(f"Error: {response.status_code} - {content.decode('utf-8')}")
@@ -206,6 +208,21 @@ class AgentClient:
                         if parsed is None:
                             break
                         yield parsed
+
+    async def approve_request(self, thread_id: str, approval: Literal["approve", "deny"]):
+        request = ToolCallApproval(thread_id=thread_id, approval=approval) 
+        print(f"request: {request}")    
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{self.base_url}/approval/{thread_id}",
+                json=request.model_dump(),
+                headers=self._headers,
+                timeout=self.timeout,
+            )
+            print(f"{response}")
+            if response.status_code != 200:
+                raise Exception(f"Error: {response.status_code} - {response.text}")
+            response.json()
 
     async def acreate_feedback(
         self, run_id: str, key: str, score: float, kwargs: dict[str, Any] = {}

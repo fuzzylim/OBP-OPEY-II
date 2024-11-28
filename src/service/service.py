@@ -30,8 +30,8 @@ from schema import (
     ToolCallApproval,
 )
 
-#logging.basicConfig(level=logging.DEBUG)
-#logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -60,9 +60,15 @@ async def check_auth_header(request: Request, call_next: Callable) -> Response:
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
     run_id = uuid4()
     thread_id = user_input.thread_id or str(uuid4())
-    input_message = ChatMessage(type="human", content=user_input.message)
+    # If this is a tool call approval, we don't need to send any input to the agent.
+    if user_input.is_tool_call_approval:
+        _input = None
+    else:
+        input_message = ChatMessage(type="human", content=user_input.message)
+        _input = {"messages": [input_message.to_langchain()]}
+    
     kwargs = {
-        "input": {"messages": [input_message.to_langchain()]},
+        "input": _input,
         "config": RunnableConfig(
             configurable={"thread_id": thread_id, "model": user_input.model}, run_id=run_id
         ),
@@ -89,22 +95,15 @@ async def wait_for_user_approval(thread_id: str) -> str:
     print(f"[Debug] Wait for approval event loop: {id(asyncio.get_running_loop())}")
     async with _approval_condition:
         print(f"[Waiter] Waiting for approval of {thread_id}")
-        while thread_id not in _pending_approvals:
+        while thread_id not in _pending_approvals.keys():
             await _approval_condition.wait()
             print(f"[Waiter] Woke up for {thread_id}, checking condition")
+            print(f"[Waiter] Pending approvals: {_pending_approvals}")
+        print(f"[Waiter] Returning {_pending_approvals[thread_id]}")
         return _pending_approvals.pop(thread_id)
+    
 
-@app.post("/approval/{thread_id}")
-async def user_approval(user_response: ToolCallApproval) -> dict[str, str]:
-    print(f"[Debug] Approval endpoint event loop: {id(asyncio.get_running_loop())}")
-    async with _approval_condition:
-        print(f"[Notifier] Setting approval for {user_response.thread_id}")
-        _pending_approvals[user_response.thread_id] = user_response.approval
-        _approval_condition.notify_all()
-        print(f"[Notifier] Notified all for {user_response.thread_id}")
-    return {"status": "received"}
-
-async def _process_stream_event(event: StreamEvent, user_input: StreamInput, run_id: str) -> AsyncGenerator[str, None]:
+async def _process_stream_event(event: StreamEvent, user_input: StreamInput | ToolCallApproval, run_id: str) -> AsyncGenerator[str, None]:
     """Helper to process stream events consistently"""
     if not event:
         return
@@ -190,20 +189,11 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
     
     if not tool_call_message:
         raise Exception("No tool call to approve found in the graph state.")
-        
+    else:
+        tool_call = tool_call_message.tool_calls[0]
+        print(f"Waiting for approval of tool call: {tool_call}")
+        yield f"data: {json.dumps({'type': 'approval_request', 'for': tool_call})}\n\n"
     
-    tool_call = tool_call_message.tool_calls[0]
-    print(f"Waiting for approval of tool call: {tool_call}")
-    yield f"data: {json.dumps({'type': 'approval_request', 'for': tool_call})}\n\n"
-    
-    user_response = await wait_for_user_approval(thread_id)
-    print(f"Received user response: {user_response}")
-    # here we need to edit the current graph state with the user response I.e. add a tool message and route to Opey if disapproved
-
-    # Restart graph streaming after user approval
-    async for event in agent.astream_events(None, thread, version="v2"):
-        async for msg in _process_stream_event(event, user_input, run_id):
-            yield msg
 
     yield "data: [DONE]\n\n"
 
@@ -230,6 +220,26 @@ async def stream_agent(user_input: StreamInput) -> StreamingResponse:
     Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
     is also attached to all messages for recording feedback.
     """
+    return StreamingResponse(message_generator(user_input), media_type="text/event-stream")
+
+
+@app.post("/approval/{thread_id}", response_class=StreamingResponse, responses=_sse_response_example())
+async def user_approval(user_approval_response: ToolCallApproval, thread_id: str) -> StreamingResponse:
+    print(f"[DEBUG] Approval endpoint user_response: {user_approval_response}")
+    
+    agent: CompiledStateGraph = app.state.agent
+
+    agent_state = await agent.aget_state({"configurable": {"thread_id": thread_id}})
+    print(f"[DEBUG] Agent state: {agent_state}")
+    
+    user_input = StreamInput(
+        message="",
+        model="",
+        thread_id=thread_id,
+        is_tool_call_approval=True,
+    )
+
+
     return StreamingResponse(message_generator(user_input), media_type="text/event-stream")
 
 

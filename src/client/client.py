@@ -113,6 +113,8 @@ class AgentClient:
                 case "approval_request":
                     # Yield the approval request directly
                     return parsed
+                case "keep_alive":
+                    return parsed
                 case "error":
                     raise Exception(parsed["content"])
         return None
@@ -159,6 +161,10 @@ class AgentClient:
                 if line.strip():
                     parsed = self._parse_stream_line(line)
                     if parsed is None:
+                        break
+                    # On receiving an approval request, we need to yeild it to streamlit and stop streaming
+                    if isinstance(parsed, dict) and parsed["type"] == "approval_request":
+                        yield parsed
                         break
                     yield parsed
 
@@ -207,22 +213,34 @@ class AgentClient:
                         parsed = self._parse_stream_line(line)
                         if parsed is None:
                             break
+                        # On receiving an approval request, we need to yeild it to streamlit and stop streaming
+                        if isinstance(parsed, dict) and parsed["type"] == "approval_request":
+                            yield parsed
                         yield parsed
 
-    async def approve_request(self, thread_id: str, approval: Literal["approve", "deny"]):
-        request = ToolCallApproval(thread_id=thread_id, approval=approval) 
+    async def approve_request_and_stream(self, thread_id: str, approval: Literal["approve", "deny"]):
+        request = ToolCallApproval(approval=approval) 
         print(f"request: {request}")    
         async with httpx.AsyncClient() as client:
-            response = await client.post(
+            async with client.stream(
+                "POST",
                 f"{self.base_url}/approval/{thread_id}",
                 json=request.model_dump(),
                 headers=self._headers,
                 timeout=self.timeout,
-            )
-            print(f"{response}")
-            if response.status_code != 200:
-                raise Exception(f"Error: {response.status_code} - {response.text}")
-            response.json()
+            ) as response:
+                if response.status_code != 200:
+                    content = await response.aread()
+                    raise Exception(f"Error: {response.status_code} - {content.decode('utf-8')}")
+                async for line in response.aiter_lines():
+                    if line.strip():
+                        parsed = self._parse_stream_line(line)
+                        if parsed is None:
+                            break
+                        # On receiving an approval request, we need to yeild it to streamlit and stop streaming
+                        if isinstance(parsed, dict) and parsed["type"] == "approval_request":
+                            yield parsed
+                        yield parsed
 
     async def acreate_feedback(
         self, run_id: str, key: str, score: float, kwargs: dict[str, Any] = {}

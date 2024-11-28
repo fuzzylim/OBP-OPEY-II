@@ -89,14 +89,16 @@ async def main() -> None:
 
         "[View the source code](https://github.com/OpenBankProject/OBP-Opey-II)"
         st.caption(
-            "Made by [Nemo Godebski-Pedersen](https://www.linkedin.com/in/nemo-godebski-pedersen) with inspiration from [Agent Service Toolkit](https://github.com/JoshuaC215/agent-service-toolkit)"
+            "Made by [TESOBE](https://www.tesobe.com/)with inspiration from [Agent Service Toolkit](https://github.com/JoshuaC215/agent-service-toolkit)"
         )
-        st.write(OBP_LOGO, width=50)
+        st.write(OBP_LOGO)
 
     # Draw existing messages
     if "messages" not in st.session_state:
         st.session_state.messages = []
     messages: list[ChatMessage] = st.session_state.messages
+    if "tool_calls" not in st.session_state:
+        st.session_state.tool_calls = {}
 
     if len(messages) == 0:
         WELCOME = "Hello, I'm Opey! A context informed AI assistant for the Open Bank Project API. Ask me anything about the API and I'll do my best to help you out."
@@ -110,6 +112,30 @@ async def main() -> None:
 
     await draw_messages(amessage_iter(), thread_id=get_script_run_ctx().session_id)
 
+    if st.session_state.approval_pending:
+            st.write("Approve call to API?")
+            st.write(st.session_state.approval_tool_call)
+            agent_client = get_agent_client()
+            # Use a container to hold the buttons
+            with st.container():
+                approve_col, deny_col = st.columns(2)
+                with approve_col:
+                    if st.button("Approve"):
+                        print("Approved request")
+                        stream = agent_client.approve_request_and_stream(
+                            thread_id=st.session_state.approval_thread_id,
+                            approval="approve"
+                        )
+                        await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+                with deny_col:
+                    if st.button("Deny"):
+                        print("Denied request")
+                        stream = agent_client.approve_request_and_stream(
+                            thread_id=st.session_state.approval_thread_id,
+                            approval="deny"
+                        )
+                        await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
         messages.append(ChatMessage(type="human", content=user_input))
@@ -122,6 +148,7 @@ async def main() -> None:
                 thread_id=get_script_run_ctx().session_id,
             )
             await draw_messages(stream, thread_id=get_script_run_ctx().session_id, is_new=True)
+        
         else:
             response = await agent_client.ainvoke(
                 message=user_input,
@@ -139,7 +166,7 @@ async def main() -> None:
 
 
 async def draw_messages(
-    messages_agen: AsyncGenerator[ChatMessage | str, None],
+    messages_agen: AsyncGenerator[ChatMessage | str | dict, None],
     thread_id: str,
     is_new: bool = False,
 ) -> None:
@@ -157,9 +184,14 @@ async def draw_messages(
     drawing the feedback widget in the latest chat message.
 
     Args:
-        messages_aiter: An async iterator over messages to draw.
+        messages_agen: An async iterator over messages to draw.
+        thread_id: The thread ID associated with the conversation.
         is_new: Whether the messages are new or not.
     """
+    if 'approval_pending' not in st.session_state:
+        st.session_state.approval_pending = False
+        st.session_state.approval_tool_call = None
+        st.session_state.approval_thread_id = None
 
     # Keep track of the last message container
     last_message_type = None
@@ -174,7 +206,6 @@ async def draw_messages(
         # str message represents an intermediate token being streamed
         if isinstance(msg, str):
             # If placeholder is empty, this is the first token of a new message
-            # being streamed. We need to do setup.
             if not streaming_placeholder:
                 if last_message_type != "ai":
                     last_message_type = "ai"
@@ -185,34 +216,34 @@ async def draw_messages(
             streaming_content += msg
             streaming_placeholder.write(streaming_content)
             continue
+        
+        if isinstance(msg, dict):
+            if msg["type"] == "keep_alive":
+                continue
+                
+
         if not isinstance(msg, ChatMessage):
-            st.write(f"{type(msg)}, {type(ChatMessage)}")
             st.error(f"Unexpected message type: {type(msg)}")
             st.write(msg)
-            st.stop()
+            continue
 
-        
+        # Match message types
         match msg.type:
-            # A message from the user, the easiest case
+            # User messages
             case "human":
                 last_message_type = "human"
                 st.chat_message("human").write(msg.content)
 
-            # A message from the agent is the most complex case, since we need to
-            # handle streaming tokens and tool calls.
+            # Agent messages
             case "ai":
-                # If we're rendering new messages, store the message in session state
                 if is_new:
                     st.session_state.messages.append(msg)
 
-                # If the last message type was not AI, create a new chat message
                 if last_message_type != "ai":
                     last_message_type = "ai"
                     st.session_state.last_message = st.chat_message("ai")
 
                 with st.session_state.last_message:
-                    # If the message has content, write it out.
-                    # Reset the streaming variables to prepare for the next message.
                     if msg.content:
                         if streaming_placeholder:
                             streaming_placeholder.write(msg.content)
@@ -221,6 +252,10 @@ async def draw_messages(
                         else:
                             st.write(msg.content)
                     
+                    
+                    #if msg.original["metadata"]["langgraph_node"] in ["retrieve_endpoints"]
+
+
                     #if msg.original["metadata"]["langgraph_node"] in ["retrieve_endpoints"]
 
                     if msg.tool_calls:
@@ -228,7 +263,7 @@ async def draw_messages(
                         # status container by ID to ensure results are mapped to the
                         # correct status container.
                         print(f"Received tool calls: {msg.tool_calls}")
-                        call_results = {}
+                        call_results = st.session_state.tool_calls
                         for tool_call in msg.tool_calls:
                             status = st.status(
                                 f"""Tool Call: {tool_call["name"]}""",
@@ -240,47 +275,47 @@ async def draw_messages(
 
                         print(f"Waiting for {len(call_results)} call(s) to finish\n")
                         # Expect one ToolMessage for each tool call.
-                        for _ in range(len(call_results)):
-                            tool_result: ChatMessage | str | dict = await anext(messages_agen)
-
-                            if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
-                                st.write("Approve call to API?")
-                                st.write(tool_result["for"])
-                                agent_client = get_agent_client()
-                                st.write("will write after agent clinet got")
-                                if st.button("Approve"):
-                                    print("Approved request")
-                                    response = await agent_client.approve_request(thread_id, "approve")
-                                    tool_result: ChatMessage | str | dict = await anext(messages_agen)
-                                if st.button("Deny", type="primary"):
-                                    print("Denied request")
-                                    response = await agent_client.approve_request(thread_id, "deny")
-                                    tool_result: ChatMessage | str | dict = await anext(messages_agen)
-                            elif isinstance(tool_result, str):
-                                st.error(f"Tool returned is a string {tool_result}")
-                                st.write(tool_result)
-                                st.stop()
-                            elif tool_result.type != "tool":
-                                st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
-                                st.write(tool_result)
-                                st.stop()
+                        if not st.session_state.approval_pending:
+                            print("DEBUG: Not in approval pending")
+                            for _ in range(len(call_results)):
+                                tool_result: ChatMessage | str | dict = await anext(messages_agen)
+                                if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
+                                    st.session_state.approval_tool_call = tool_result["for"]
+                                    st.session_state.approval_pending = True
+                                    st.session_state.approval_thread_id = thread_id
+                                if isinstance(tool_result, str):
+                                    st.error(f"Tool returned is a string {tool_result}")
+                                    st.write(tool_result)
+                                    st.stop()
+                                if isinstance(tool_result, ChatMessage) and tool_result.type != "tool":
+                                    st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
+                                    st.write(tool_result)
+                                    st.stop()
 
 
                             # Record the message if it's new, and update the correct
                             # status container with the result
-                            if is_new:
-                                st.session_state.messages.append(tool_result)
-                            status = call_results[tool_result.tool_call_id]
-                            status.write("Output:")
-                            status.write(tool_result.content)
-                            status.update(state="complete")
+                            if not isinstance(tool_result, dict):
+                                if is_new:
+                                    st.session_state.messages.append(tool_result)
+                                status = call_results[tool_result.tool_call_id]
+                                status.write("Output:")
+                                status.write(tool_result.content)
+                                status.update(state="complete")
 
-            # In case of an unexpected message type, log an error and stop
+            case "tool":
+                call_results = st.session_state.tool_calls
+                
+                if msg.tool_call_id in call_results.keys():
+                    status = call_results[msg.tool_call_id]
+                    status.write("Output:")
+                    status.write(msg.content)
+                    status.update(state="complete")
+            # Handle other message types if necessary
             case _:
                 st.error(f"Unexpected ChatMessage type: {msg.type}")
                 st.write(msg)
                 st.stop()
-
 
 async def handle_feedback() -> None:
     """Draws a feedback widget and records feedback from the user."""
@@ -306,7 +341,6 @@ async def handle_feedback() -> None:
         )
         st.session_state.last_feedback = (latest_run_id, feedback)
         st.toast("Feedback recorded", icon=":material/reviews:")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -88,6 +88,10 @@ class ChatMessage(BaseModel):
         description="Tool calls in the message.",
         default=[],
     )
+    tool_approval_request: bool = Field(
+        description="Whether this message is an approval request for a tool call.",
+        default=False,
+    )
     tool_call_id: str | None = Field(
         description="Tool call that this message is responding to.",
         default=None,
@@ -181,4 +185,8 @@ class FeedbackResponse(BaseModel):
 class ToolCallApproval(BaseModel):
     approval: Literal["approve", "deny"] = Field(
         description="Approval status for the tool call.",
+    )
+    tool_call_id: str = Field(
+        description="Tool call ID to approve or deny.",
+        examples=["call_Jja7J89XsjrOLA5r!MEOW!SL"],
     )

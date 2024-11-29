@@ -14,6 +14,7 @@ from fastapi.responses import StreamingResponse
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langchain_core.runnables import RunnableConfig
 from langchain_core.runnables.schema import StreamEvent
+from langchain_core.messages import ToolMessage
 from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
 
@@ -30,8 +31,8 @@ from schema import (
     ToolCallApproval,
 )
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
+#logging.basicConfig(level=logging.DEBUG)
+#logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -108,8 +109,6 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
     if not event:
         return
     
-    print("DATA: ", event, "\n")
-    
     # Handle messages after node execution
     if (
         event["event"] == "on_chain_end"
@@ -123,7 +122,6 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
             new_messages = [new_messages]
             
         for message in new_messages:
-            print(f"{message.pretty_print()}")
             try:
                 chat_message = ChatMessage.from_langchain(message)
                 chat_message.run_id = str(run_id)
@@ -132,7 +130,6 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
                 continue
 
             if not (chat_message.type == "human" and chat_message.content == user_input.message):
-                print(f"Sending message: {chat_message}")
                 yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
     # Handle tokens streamed from LLMs
@@ -185,14 +182,21 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
     # Wait for user approval via HTTP request
     agent_state = await agent.aget_state(thread)
     messages = agent_state.values.get("messages", [])
+    agent_state.values["messages"] = ["..."]
+    print(f"next node: {agent_state.next}")
+    print(f"\n\nGRAPH STATE: {agent_state}\n\n")
     tool_call_message = messages[-1] if messages else None
     
-    if not tool_call_message:
-        raise Exception("No tool call to approve found in the graph state.")
+    if not tool_call_message or not tool_call_message.tool_calls:
+        pass
     else:
+        print(f"Tool call message: {tool_call_message}\n")
         tool_call = tool_call_message.tool_calls[0]
-        print(f"Waiting for approval of tool call: {tool_call}")
-        yield f"data: {json.dumps({'type': 'approval_request', 'for': tool_call})}\n\n"
+        print(f"Waiting for approval of tool call: {tool_call}\n")
+
+        tool_approval_message = ChatMessage(type="tool", tool_approval_request=True, tool_call_id=tool_call["id"], content="", tool_calls=[tool_call])
+
+        yield f"data: {json.dumps({'type': 'message', "content": tool_approval_message.model_dump()})}\n\n"
     
 
     yield "data: [DONE]\n\n"
@@ -225,12 +229,28 @@ async def stream_agent(user_input: StreamInput) -> StreamingResponse:
 
 @app.post("/approval/{thread_id}", response_class=StreamingResponse, responses=_sse_response_example())
 async def user_approval(user_approval_response: ToolCallApproval, thread_id: str) -> StreamingResponse:
-    print(f"[DEBUG] Approval endpoint user_response: {user_approval_response}")
+    print(f"[DEBUG] Approval endpoint user_response: {user_approval_response}\n")
     
     agent: CompiledStateGraph = app.state.agent
 
     agent_state = await agent.aget_state({"configurable": {"thread_id": thread_id}})
-    print(f"[DEBUG] Agent state: {agent_state}")
+
+    if user_approval_response.approval == "deny":
+        # Answer as if we were the obp requests tool node
+        await agent.aupdate_state(
+            {"configurable": {"thread_id": thread_id}},
+            {"messages": [ToolMessage(content="User denied request to OBP API", tool_call_id=user_approval_response.tool_call_id)]},
+            as_node="obp_requests",
+        )
+    else:
+        # If approved, just continue to the OBP requests node
+        await agent.aupdate_state(
+            {"configurable": {"thread_id": thread_id}},
+            values=None,
+            as_node="human_review",
+        )
+
+    print(f"[DEBUG] Agent state: {agent_state}\n")
     
     user_input = StreamInput(
         message="",

@@ -218,14 +218,13 @@ class AgentClient:
                             yield parsed
                         yield parsed
 
-    async def approve_request_and_stream(self, thread_id: str, approval: Literal["approve", "deny"]):
-        request = ToolCallApproval(approval=approval) 
-        print(f"request: {request}")    
+    async def approve_request_and_stream(self, thread_id: str, user_input: ToolCallApproval):
+        print(f"request: {user_input}")    
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "POST",
                 f"{self.base_url}/approval/{thread_id}",
-                json=request.model_dump(),
+                json=user_input.model_dump(),
                 headers=self._headers,
                 timeout=self.timeout,
             ) as response:

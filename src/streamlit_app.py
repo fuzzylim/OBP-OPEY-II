@@ -7,7 +7,7 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 
 from PIL import Image
 from client import AgentClient
-from schema import ChatMessage
+from schema import ChatMessage, ToolCallApproval
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
@@ -97,8 +97,10 @@ async def main() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages = []
     messages: list[ChatMessage] = st.session_state.messages
-    if "tool_calls" not in st.session_state:
-        st.session_state.tool_calls = {}
+    if "pending_tool_calls" not in st.session_state:
+        st.session_state.pending_tool_calls = {}
+    if "completed_tool_calls" not in st.session_state:
+        st.session_state.completed_tool_calls = {}
 
     if len(messages) == 0:
         WELCOME = "Hello, I'm Opey! A context informed AI assistant for the Open Bank Project API. Ask me anything about the API and I'll do my best to help you out."
@@ -113,28 +115,36 @@ async def main() -> None:
     await draw_messages(amessage_iter(), thread_id=get_script_run_ctx().session_id)
 
     if st.session_state.approval_pending:
-            st.write("Approve call to API?")
-            st.write(st.session_state.approval_tool_call)
-            agent_client = get_agent_client()
-            # Use a container to hold the buttons
-            with st.container():
-                approve_col, deny_col = st.columns(2)
-                with approve_col:
-                    if st.button("Approve"):
-                        print("Approved request")
-                        stream = agent_client.approve_request_and_stream(
-                            thread_id=st.session_state.approval_thread_id,
+        st.write("Approve call to API?")
+        print(st.session_state.approval_tool_call)
+        st.write(st.session_state.approval_tool_call)
+        agent_client = get_agent_client()
+        # Use a container to hold the buttons
+        with st.container():
+            approve_col, deny_col = st.columns(2)
+            with approve_col:
+                if st.button("Approve"):
+                    print("Approved request")
+                    stream = agent_client.approve_request_and_stream(
+                        thread_id=st.session_state.approval_thread_id,
+                        user_input=ToolCallApproval(
+                            tool_call_id=st.session_state.approval_tool_call["id"],
                             approval="approve"
                         )
-                        await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
-                with deny_col:
-                    if st.button("Deny"):
-                        print("Denied request")
-                        stream = agent_client.approve_request_and_stream(
-                            thread_id=st.session_state.approval_thread_id,
+                    )
+                    await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+            with deny_col:
+                if st.button("Deny"):
+                    print("Denied request")
+                    stream = agent_client.approve_request_and_stream(
+                        thread_id=st.session_state.approval_thread_id,
+                        user_input=ToolCallApproval(
+                            tool_call_id=st.session_state.approval_tool_call["id"],
                             approval="deny"
                         )
-                        await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+                    )
+                    await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+
 
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
@@ -263,55 +273,65 @@ async def draw_messages(
                         # status container by ID to ensure results are mapped to the
                         # correct status container.
                         print(f"Received tool calls: {msg.tool_calls}")
-                        call_results = st.session_state.tool_calls
+                        pending_tool_calls = st.session_state.pending_tool_calls
                         for tool_call in msg.tool_calls:
                             status = st.status(
                                 f"""Tool Call: {tool_call["name"]}""",
                                 state="running" if is_new else "complete",
                             )
-                            call_results[tool_call["id"]] = status
+                            pending_tool_calls[tool_call["id"]] = status
                             status.write("Input:")
                             status.write(tool_call["args"])
 
-                        print(f"Waiting for {len(call_results)} call(s) to finish\n")
+
+                        print(f"Waiting for {len(pending_tool_calls)} call(s) to finish\n")
                         # Expect one ToolMessage for each tool call.
-                        if not st.session_state.approval_pending:
-                            print("DEBUG: Not in approval pending")
-                            for _ in range(len(call_results)):
-                                tool_result: ChatMessage | str | dict = await anext(messages_agen)
-                                if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
-                                    st.session_state.approval_tool_call = tool_result["for"]
-                                    st.session_state.approval_pending = True
-                                    st.session_state.approval_thread_id = thread_id
-                                if isinstance(tool_result, str):
-                                    st.error(f"Tool returned is a string {tool_result}")
-                                    st.write(tool_result)
-                                    st.stop()
-                                if isinstance(tool_result, ChatMessage) and tool_result.type != "tool":
-                                    st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
-                                    st.write(tool_result)
-                                    st.stop()
+                        # if not st.session_state.approval_pending:
+                        #     for _ in range(len(pending_tool_calls)):
+                        #         tool_result: ChatMessage | str | dict = await anext(messages_agen)
+                        #         if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
+                        #             st.session_state.approval_tool_call = tool_result["for"]
+                        #             st.session_state.approval_pending = True
+                        #             st.session_state.approval_thread_id = thread_id
+                        #         if isinstance(tool_result, str):
+                        #             st.error(f"Tool returned is a string {tool_result}")
+                        #             st.write(tool_result)
+                        #             st.stop()
+                        #         if isinstance(tool_result, ChatMessage) and tool_result.type != "tool":
+                        #             st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
+                        #             st.write(tool_result)
+                        #             st.stop()
 
-
-                            # Record the message if it's new, and update the correct
-                            # status container with the result
-                            if not isinstance(tool_result, dict):
-                                if is_new:
-                                    st.session_state.messages.append(tool_result)
-                                status = call_results[tool_result.tool_call_id]
-                                status.write("Output:")
-                                status.write(tool_result.content)
-                                status.update(state="complete")
+                        #         # Record the message if it's new, and update the correct
+                        #         # status container with the result
+                        #         if not isinstance(tool_result, dict):
+                        #             if is_new:
+                        #                 st.session_state.messages.append(tool_result)
+                        #             status = pending_tool_calls[tool_result.tool_call_id]
+                        #             status.write("Output:")
+                        #             status.write(tool_result.content)
+                        #             status.update(state="complete")
+                        #             st.session_state.completed_tool_calls[tool_result.tool_call_id] = pending_tool_calls.pop(tool_result.tool_call_id)
 
             case "tool":
-                call_results = st.session_state.tool_calls
-                
-                if msg.tool_call_id in call_results.keys():
-                    status = call_results[msg.tool_call_id]
-                    status.write("Output:")
-                    status.write(msg.content)
-                    status.update(state="complete")
-            # Handle other message types if necessary
+                pending_tool_calls = st.session_state.pending_tool_calls
+                completed_tool_calls = st.session_state.completed_tool_calls
+                print(f"Received tool message: {msg}")
+                if msg.tool_call_id in pending_tool_calls.keys() and not st.session_state.approval_pending:
+                    if msg.tool_approval_request:
+                        print("Received tool approval request")
+                        st.session_state.approval_tool_call = msg.tool_calls[0]
+                        st.session_state.approval_pending = True
+                        st.session_state.approval_thread_id = thread_id
+                    else:
+                        if is_new:
+                            st.session_state.messages.append(msg)
+                        status = pending_tool_calls[msg.tool_call_id]
+                        status.write("Output:")
+                        status.write(msg.content)
+                        status.update(state="complete")
+                        completed_tool_calls[msg.tool_call_id] = pending_tool_calls.pop(msg.tool_call_id)
+                # Handle other message types if necessary
             case _:
                 st.error(f"Unexpected ChatMessage type: {msg.type}")
                 st.write(msg)

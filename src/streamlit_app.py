@@ -125,6 +125,7 @@ async def main() -> None:
             with approve_col:
                 if st.button("Approve"):
                     print("Approved request")
+                    st.session_state.approval_pending = False
                     stream = agent_client.approve_request_and_stream(
                         thread_id=st.session_state.approval_thread_id,
                         user_input=ToolCallApproval(
@@ -136,6 +137,7 @@ async def main() -> None:
             with deny_col:
                 if st.button("Deny"):
                     print("Denied request")
+                    st.session_state.approval_pending = False
                     stream = agent_client.approve_request_and_stream(
                         thread_id=st.session_state.approval_thread_id,
                         user_input=ToolCallApproval(
@@ -144,6 +146,7 @@ async def main() -> None:
                         )
                     )
                     await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
+            st.rerun()
 
 
     # Generate new message if the user provided new input

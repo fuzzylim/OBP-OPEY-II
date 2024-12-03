@@ -120,8 +120,17 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
         new_messages = event["data"]["output"]["messages"]
         if not isinstance(new_messages, list):
             new_messages = [new_messages]
+
+        # This is a proper hacky way to make sure that no messages are sent from the retreiaval decider node
+        if event["metadata"].get("langgraph_node", "") == "retrieval_decider":
+            print(f"Retrieval decider node returned text content, erasing...")
+            erase_content = True
+        else:
+            erase_content = False
             
         for message in new_messages:
+            if erase_content:
+                message.content = ""
             try:
                 chat_message = ChatMessage.from_langchain(message)
                 chat_message.run_id = str(run_id)
@@ -130,6 +139,7 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
                 continue
 
             if not (chat_message.type == "human" and chat_message.content == user_input.message):
+                chat_message.pretty_print()
                 yield f"data: {json.dumps({'type': 'message', 'content': chat_message.model_dump()})}\n\n"
 
     # Handle tokens streamed from LLMs
@@ -137,6 +147,7 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
         event["event"] == "on_chat_model_stream"
         and user_input.stream_tokens
         and event['metadata'].get('langgraph_node', '') != "transform_query"
+        and event['metadata'].get('langgraph_node', '') != "retrieval_decider"
     ):
         content = _remove_tool_calls(event["data"]["chunk"].content)
         if content:
@@ -240,7 +251,7 @@ async def user_approval(user_approval_response: ToolCallApproval, thread_id: str
         await agent.aupdate_state(
             {"configurable": {"thread_id": thread_id}},
             {"messages": [ToolMessage(content="User denied request to OBP API", tool_call_id=user_approval_response.tool_call_id)]},
-            as_node="obp_requests",
+            as_node="obp_requests_tools",
         )
     else:
         # If approved, just continue to the OBP requests node

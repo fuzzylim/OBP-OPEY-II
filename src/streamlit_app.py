@@ -21,7 +21,7 @@ from schema import ChatMessage, ToolCallApproval
 
 OBP_favicon = Image.open("src/resources/favicon.ico")
 OBP_LOGO = Image.open("src/resources/OBP_full_web.png")
-OPEY_AVATAR = Image.open("src/resources/opey_avatar.png")
+OPEY_AVATAR = Image.open("src/resources/opey-icon.png")
 OPEY_LOGO = Image.open("src/resources/opey_logo.png")
 
 APP_TITLE = "Opey Agent Service"
@@ -148,7 +148,6 @@ async def main() -> None:
                     await draw_messages(stream, thread_id=st.session_state.approval_thread_id, is_new=True)
             st.rerun()
 
-
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
         messages.append(ChatMessage(type="human", content=user_input))
@@ -222,7 +221,7 @@ async def draw_messages(
             if not streaming_placeholder:
                 if last_message_type != "ai":
                     last_message_type = "ai"
-                    st.session_state.last_message = st.chat_message("ai")
+                    st.session_state.last_message = st.chat_message("ai", avatar=OPEY_AVATAR)
                 with st.session_state.last_message:
                     streaming_placeholder = st.empty()
 
@@ -254,7 +253,7 @@ async def draw_messages(
 
                 if last_message_type != "ai":
                     last_message_type = "ai"
-                    st.session_state.last_message = st.chat_message("ai")
+                    st.session_state.last_message = st.chat_message("ai", avatar=OPEY_AVATAR)
 
                 with st.session_state.last_message:
                     if msg.content:

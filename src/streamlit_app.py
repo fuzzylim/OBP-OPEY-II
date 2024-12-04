@@ -9,6 +9,8 @@ from PIL import Image
 from client import AgentClient
 from schema import ChatMessage, ToolCallApproval
 
+from utils.utils import generate_mermaid_diagram
+
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
 
@@ -75,9 +77,20 @@ async def main() -> None:
 
         @st.dialog("Architecture")
         def architecture_dialog() -> None:
-            st.image(
-                "https://github.com/JoshuaC215/agent-service-toolkit/blob/main/media/agent_architecture.png?raw=true"
-            )
+            if not os.path.isfile("src/resources/agent_architecture.png"):
+                try:
+                    generate_mermaid_diagram("src/resources/agent_architecture.png")
+                    st.image(
+                        "src/resources/agent_architecture.png",
+                    )
+                except Exception as e:
+                    st.error(f"Error generating architecture diagram: {e}")
+                    st.write("Graph diagram not available at this time")
+            else:
+                st.image(
+                    "src/resources/agent_architecture.png",
+                )
+            
 
         if st.button(":material/schema: Architecture", use_container_width=True):
             architecture_dialog()

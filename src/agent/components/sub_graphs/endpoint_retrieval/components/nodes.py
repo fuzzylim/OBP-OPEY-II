@@ -9,9 +9,11 @@ load_dotenv()
 
 # Setup vector store and retriever
 retriever_batch_size = os.getenv("ENDPOINT_RETRIEVER_BATCH_SIZE", 5)
+retriever_retry_threshold = os.getenv("ENDPOINT_RETRIEVER_RETRY_THRESHOLD", 2)
+retriever_max_retries = os.getenv("ENDPOINT_RETRIEVER_MAX_RETRIES", 2)
 
 endpoint_vector_store = setup_chroma_vector_store("obp_endpoints")
-endpoint_retriever = setup_retriever(k=8, vector_store=endpoint_vector_store)
+endpoint_retriever = setup_retriever(k=int(retriever_batch_size), vector_store=endpoint_vector_store)
 
 def retrieve_endpoints(state):
     """
@@ -77,11 +79,13 @@ def grade_documents(state):
             #print("---GRADE: DOCUMENT NOT RELEVANT---")
             continue
         
-    # If there are three or less relevant endpoints then retry query after rewriting question
-    retry_threshold = 2
+    # If there are less documents than the threshold then retry query after rewriting question
+    retry_threshold = int(retriever_retry_threshold)
     
-    if len(filtered_docs) <= retry_threshold:
+    if len(filtered_docs) < retry_threshold:
         retry_query=True
+    else:
+        retry_query=False
         
     #print("Documents: \n", "\n".join(f"{doc.metadata["method"]} - {doc.metadata["path"]}" for doc in filtered_docs))
     return {"documents": documents, "relevant_documents": filtered_docs, "question": question, "retry_query": retry_query}

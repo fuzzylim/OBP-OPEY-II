@@ -18,12 +18,21 @@ def obp_requests(method: str, path: str, body: str):
         json_body = None
     else:
         json_body = json.loads(body)
-        
-    if method == "GET":
+    
+    if method == 'GET':
         response = requests.get(url, headers=headers)
+    elif method == 'POST':
+        response = requests.post(url, headers=headers, json=json_body)
+        
+    print("Response from OBP:\n", json.dumps(response.json(), indent=2))
+    
+    if response.status_code == 200:
         return response.json()
     else:
-        return {"error": f"dangerous method {method} not allowed"}
+        print("Error fetching data from OBP:", response.json())
+        return response.json()
+    
+    
 
 # Define endpoint retrieval tool nodes
 

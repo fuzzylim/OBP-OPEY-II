@@ -115,7 +115,7 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
         and any(t.startswith("graph:step:") for t in event.get("tags", []))
         and event["data"].get("output") is not None
         and "messages" in event["data"]["output"]
-        and event["metadata"].get("langgraph_node", "") != "human_review"
+        and event["metadata"].get("langgraph_node", "") not in ["human_review", "summarize_conversation"]
     ):
         new_messages = event["data"]["output"]["messages"]
         if not isinstance(new_messages, list):
@@ -148,6 +148,7 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
         and user_input.stream_tokens
         and event['metadata'].get('langgraph_node', '') != "transform_query"
         and event['metadata'].get('langgraph_node', '') != "retrieval_decider"
+        and event['metadata'].get('langgraph_node', '') != "summarize_conversation"
     ):
         content = _remove_tool_calls(event["data"]["chunk"].content)
         if content:
@@ -193,9 +194,7 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
     # Wait for user approval via HTTP request
     agent_state = await agent.aget_state(thread)
     messages = agent_state.values.get("messages", [])
-    agent_state.values["messages"] = ["..."]
     print(f"next node: {agent_state.next}")
-    print(f"\n\nGRAPH STATE: {agent_state}\n\n")
     tool_call_message = messages[-1] if messages else None
     
     if not tool_call_message or not tool_call_message.tool_calls:

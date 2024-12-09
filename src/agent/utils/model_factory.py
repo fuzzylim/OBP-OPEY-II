@@ -67,7 +67,7 @@ elif model_provider == "ollama":
 else:
     raise ValueError(f"MODEL_PROVIDER={model_provider} is not a valid model provider or not currently supported.")
 
-def get_llm(size: Literal['small', 'medium'], temperature: float = 0, **kwargs):
+def get_llm(size: Literal['small', 'medium'], temperature: float = 0) -> BaseChatModel:
     """
     Retrieve a language model of the specified size and set its temperature.
     Args:

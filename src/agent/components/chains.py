@@ -1,7 +1,8 @@
 # Description: Contains the chains for the main agent system
 from langchain import hub
-from langchain_core.prompts import SystemMessagePromptTemplate, ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import SystemMessagePromptTemplate, PromptTemplate, ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 
 from agent.utils.model_factory import get_llm
@@ -199,3 +200,23 @@ query_formulator_prompt_template = ChatPromptTemplate.from_messages(
 
 query_formulator_llm = get_llm(size='medium', temperature=0).with_structured_output(QueryFormulatorOutput)
 query_formulator_chain = query_formulator_prompt_template | query_formulator_llm
+
+
+### Conversation Summarizer
+
+
+
+conversation_summarizer_system_prompt_template = PromptTemplate.from_template(
+    """
+    You are a conversation summarizer that takes a list of messages and tries to summarize the conversation so far.\n
+    The messages will consist of messages from the user, responses from the chatbot, and tool calls with responses.\n
+    Try to summarize the conversation so far in a way that is concise and informative.\n
+
+    {existing_summary_message}
+
+    List of messages: {messages}
+    """
+)
+
+conversation_summarizer_llm = get_llm(size='medium', temperature=0)
+conversation_summarizer_chain = conversation_summarizer_system_prompt_template | conversation_summarizer_llm | StrOutputParser()

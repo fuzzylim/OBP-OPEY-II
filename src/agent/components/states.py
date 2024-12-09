@@ -6,3 +6,4 @@ class OpeyGraphState(MessagesState):
     conversation_summary: str
     current_state: str
     aggregated_context: str
+    total_tokens: int

@@ -77,19 +77,14 @@ async def main() -> None:
 
         @st.dialog("Architecture")
         def architecture_dialog() -> None:
-            if not os.path.isfile("src/resources/agent_architecture.png"):
-                try:
-                    generate_mermaid_diagram("src/resources/agent_architecture.png")
-                    st.image(
-                        "src/resources/agent_architecture.png",
-                    )
-                except Exception as e:
-                    st.error(f"Error generating architecture diagram: {e}")
-                    st.write("Graph diagram not available at this time")
-            else:
+            try:
+                generate_mermaid_diagram("src/resources/agent_architecture.png")
                 st.image(
                     "src/resources/agent_architecture.png",
                 )
+            except Exception as e:
+                st.error(f"Error generating architecture diagram: {e}")
+                st.write("Graph diagram not available at this time")
             
 
         if st.button(":material/schema: Architecture", use_container_width=True):

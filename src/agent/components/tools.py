@@ -23,6 +23,10 @@ def obp_requests(method: str, path: str, body: str):
         response = requests.get(url, headers=headers)
     elif method == 'POST':
         response = requests.post(url, headers=headers, json=json_body)
+    elif method == 'DELETE':
+        response = requests.delete(url, headers=headers)
+    else:
+        raise ValueError(f"Method {method} is not supported. Please use 'GET', 'POST', or 'DELETE'.")
         
     print("Response from OBP:\n", json.dumps(response.json(), indent=2))
     

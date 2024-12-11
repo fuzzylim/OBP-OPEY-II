@@ -21,6 +21,8 @@ If there are any tool calls to external tools or APIs, use these to inform your 
 Use the available tools to help you answer the user's question. The user reserves the right to dissalow a tool call. If this is the case the last message will\
 most likely be a tool message detailing that the user has dissalowed the tool call.
 
+ALWAYS use the endpoint retrieval tool before calling the obp requests tool. If the endpoint retrieval tool is called, use the endpoints received from the tool to execute a request to the Open Bank Project API.
+
 Present the information given by the tools in a clear manner, do not summarize or paraphrase the information given by the tools. If the tool call is dissalowed by the user, respond with a message that you cannot answer the question at this time.
 
 Do not hallucinate or generate information that is not present in the tools. Only use the information given by the tools to answer the user's question.
@@ -36,7 +38,7 @@ prompt = ChatPromptTemplate.from_messages(
 #prompt = hub.pull("opey_main_agent")
 
 # LLM
-llm = get_llm(size='medium', temperature=0.7).bind_tools([obp_requests])
+llm = get_llm(size='medium', temperature=0.7).bind_tools([obp_requests, glossary_retrieval_tool, endpoint_retrieval_tool])
 
 # Chain
 opey_agent = prompt | llm 

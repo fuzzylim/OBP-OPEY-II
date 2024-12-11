@@ -25,4 +25,15 @@ def should_summarize(state: OpeyGraphState) -> Literal["summarize_conversation",
     # Otherwise we can just end
     print(f"Conversation less than token limit of {token_limit}, Descision: Do not summarize")
     return END
+        
+def needs_human_review(state:OpeyGraphState):
+    messages = state["messages"]
+    tool_calls = messages[-1].tool_calls
+    if not tool_calls:
+        return END
+    
+    for tool_call in tool_calls:
+        if tool_call["name"] == "obp_requests":
+            return "human_review"
+        return "tools"
 

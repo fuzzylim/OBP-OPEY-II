@@ -50,8 +50,8 @@ async def obp_requests(method: str, path: str, body: str):
     if body == '':
         json_body = None
     else:
-        json_body = await json.loads(body)
-    
+        json_body = json.loads(body)
+        
     try:
         response = await _async_request(method, url, json_body, headers=headers)
     except Exception as e:

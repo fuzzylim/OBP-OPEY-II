@@ -24,7 +24,8 @@ grader_system_prompt = """You are a grader assessing the relevance of a retrieve
     if the document contains keywords(s) or semantic meaning relevant to the user's query or if it is an endpoint that would help them acheive a specified task, grade it as relevant.\n
     You may need to infer synonyms or related concepts to determine relevance. I.e. if a user asks about 'transactions', 'payments' may also be relevant.\n
     Or if a user asks about 'API information' 'API Metrics' may be relevant.\n 
-    Give a binary score 'yes' or 'no', to indicate whether the document is relevant to the question.
+    Give a binary score 'yes' or 'no', to indicate whether the document is relevant to the question.\n
+    Only grade no if there is absolutely no relevance to the user's question.
 """
 
 grader_prompt_template = ChatPromptTemplate.from_messages(

@@ -15,7 +15,7 @@ retriever_max_retries = os.getenv("ENDPOINT_RETRIEVER_MAX_RETRIES", 2)
 endpoint_vector_store = setup_chroma_vector_store("obp_endpoints")
 endpoint_retriever = setup_retriever(k=int(retriever_batch_size), vector_store=endpoint_vector_store)
 
-def retrieve_endpoints(state):
+async def retrieve_endpoints(state):
     """
     Retrieve documents
 
@@ -35,18 +35,18 @@ def retrieve_endpoints(state):
     else:
         question = state["question"]
     # Retrieval
-    documents = endpoint_retriever.invoke(question)
+    documents = await endpoint_retriever.ainvoke(question)
     return {"documents": documents, "total_retries": total_retries}
 
 
-def return_documents(state) -> OutputState:
+async def return_documents(state) -> OutputState:
     """Return the relevant documents"""
     print("---RETRUN RELEVANT DOCUMENTS---")
     relevant_documents = state["relevant_documents"]
     return {"relevant_documents": relevant_documents}
 
 
-def grade_documents(state):
+async def grade_documents(state):
     """
     Determines whether the retrieved documents are relevant to the question.
 
@@ -66,7 +66,7 @@ def grade_documents(state):
     # glossary_search = False
     retry_query = False
     for d in documents:
-        score = retrieval_grader.invoke(
+        score = await retrieval_grader.ainvoke(
             {"question": question, "document": d.page_content}
         )
         grade = score.binary_score
@@ -91,7 +91,7 @@ def grade_documents(state):
     return {"documents": documents, "relevant_documents": filtered_docs, "question": question, "retry_query": retry_query}
               
 
-def transform_query(state):
+async def transform_query(state):
     """
     Transform the query to produce a better question.
 
@@ -107,6 +107,6 @@ def transform_query(state):
     documents = state["documents"]
     total_retries = state.get("total_retries", 0)
     # Re-write question
-    better_question = endpoint_question_rewriter.invoke({"question": question})
+    better_question = await endpoint_question_rewriter.ainvoke({"question": question})
     print(f"New query: \n{better_question}\n")
     return {"documents": documents, "rewritten_question": better_question}

@@ -21,9 +21,9 @@ If there are any tool calls to external tools or APIs, use these to inform your 
 Use the available tools to help you answer the user's question. The user reserves the right to dissalow a tool call. If this is the case the last message will\
 most likely be a tool message detailing that the user has dissalowed the tool call.
 
-Present the information given by the tools in a clear manner, do not summarize or paraphrase the information given by the tools. If the tool call is dissalowed, respond with a message that you cannot answer the question at this time.
+Present the information given by the tools in a clear manner, do not summarize or paraphrase the information given by the tools. If the tool call is dissalowed by the user, respond with a message that you cannot answer the question at this time.
 
-If you think you cant answer and you will instead hallucinate, respond with something along the lines of "I can't answer that at this time."
+Do not hallucinate or generate information that is not present in the tools. Only use the information given by the tools to answer the user's question.
 """
 
 prompt = ChatPromptTemplate.from_messages(
@@ -52,7 +52,7 @@ the user's input does not require any context (i.e. they just said 'hello') just
 If context is needed, decide to use either or both of the glossary retrieval tool or the endpoint retreival tool.
 
 The endpoints vector store contains the swagger definitions of all the endpoints on the Open Bank Project API
-The glossary vector store contains technical documents on many topics pertaining to Open Banking and the OBP API itself, such as how to authenticate.
+The glossary vector store contains technical documents on many topics pertaining to Open Banking and the OBP API itself, such as how to authenticate or sign up.
 
 When calling the endpoint or glossary retrievers, formulate a relevant query. use the messages to come up with a short search query to search the vector database of either glossary items or partial swagger specs for API endpoints.
 The query needs to be in the form of a natural sounding question that conveys the semantic intent of the message, taking into account the message history

@@ -9,7 +9,7 @@ except:
 
 glossary_retriever = setup_retriever(k=8, vector_store=glossary_vector_store)
 
-def retrieve_glossary(state):
+async def retrieve_glossary(state):
     """
     Retrieve documents
 
@@ -29,10 +29,10 @@ def retrieve_glossary(state):
     else:
         question = state["question"]
     # Retrieval
-    documents = glossary_retriever.invoke(question)
+    documents = await glossary_retriever.ainvoke(question)
     return {"documents": documents, "total_retries": total_retries}
 
-def grade_documents_glossary(state):
+async def grade_documents_glossary(state):
     """
     Determines whether the retrieved documents are relevant to the question.
 
@@ -52,7 +52,7 @@ def grade_documents_glossary(state):
     # glossary_search = False
     retry_query = False
     for d in documents:
-        score = retrieval_grader.invoke(
+        score = await retrieval_grader.ainvoke(
             {"question": question, "document": d.page_content}
         )
         grade = score.binary_score
@@ -72,7 +72,7 @@ def grade_documents_glossary(state):
     #print("Documents: \n", "\n".join(f"{doc.metadata["title"]}" for doc in filtered_docs))
     return {"documents": documents, "relevant_documents": filtered_docs, "question": question, "retry_query": retry_query}
               
-def return_documents(state) -> OutputState:
+async def return_documents(state) -> OutputState:
     """Return the relevant documents"""
     print("---RETRUN RELEVANT DOCUMENTS---")
     relevant_documents = state["relevant_documents"]

@@ -18,15 +18,15 @@ from agent.components.states import OpeyGraphState
 from agent.components.chains import retrieval_decider_chain, conversation_summarizer_chain
 from agent.utils.model_factory import get_llm
 
-def run_retrieval_decider(state: OpeyGraphState):
+async def run_retrieval_decider(state: OpeyGraphState):
     state["current_state"] = "retrieval_decider"
     messages = state["messages"]
-    output = retrieval_decider_chain.invoke({"messages": messages})#
+    output = await retrieval_decider_chain.ainvoke({"messages": messages})#
     print(f"Retrieval decider: {output.tool_calls}")
 
     return {"messages": output}
 
-def run_summary_chain(state: OpeyGraphState):
+async def run_summary_chain(state: OpeyGraphState):
     print("----- SUMMARIZING CONVERSATION -----")
     state["current_state"] = "summarize_conversation"
     total_tokens = state["total_tokens"]
@@ -45,7 +45,7 @@ def run_summary_chain(state: OpeyGraphState):
     messages = state["messages"]
 
     # After we summarize we reset the token_count to zero, this will be updated when Opey is next called
-    summary = conversation_summarizer_chain.invoke({"messages": messages, "existing_summary_message": summary_system_message})
+    summary = await conversation_summarizer_chain.ainvoke({"messages": messages, "existing_summary_message": summary_system_message})
 
     print(f"\nSummary: {summary}\n")
 
@@ -91,7 +91,7 @@ def run_summary_chain(state: OpeyGraphState):
 
     return {"messages": delete_messages, "conversation_summary": summary}
     
-def run_opey(state: OpeyGraphState):
+async def run_opey(state: OpeyGraphState):
 
     # Check if we have a convesration summary
     summary = state.get("conversation_summary", "")
@@ -101,7 +101,7 @@ def run_opey(state: OpeyGraphState):
     else:
         messages = state["messages"]
 
-    response = opey_agent.invoke({"messages": messages})
+    response = await opey_agent.ainvoke({"messages": messages})
 
     # Count the tokens in the messages
     total_tokens = state.get("total_tokens", 0)
@@ -116,7 +116,7 @@ def run_opey(state: OpeyGraphState):
 
     return {"messages": response, "total_tokens": total_tokens}
 
-def human_review_node(state):
+async def human_review_node(state):
     state["current_state"] = "human_review"
     print("Awaiting human approval for tool call...")
     pass

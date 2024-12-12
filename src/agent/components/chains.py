@@ -44,38 +44,6 @@ llm = get_llm(size='medium', temperature=0.7).bind_tools([obp_requests, glossary
 opey_agent = prompt | llm 
 
 
-### Retrieval decider
-
-from langchain_core.prompts import SystemMessagePromptTemplate, MessagesPlaceholder, ChatPromptTemplate
-
-retrieval_decider_system_prompt = """You are an assistant that decides whether further context is needed from a vector database search to answer a user's question.
-Using the chat history, look at whether the user's question can be answered from the given context or not. If it can be answered already or if
-the user's input does not require any context (i.e. they just said 'hello') just answer the question.
-If context is needed, decide to use either or both of the glossary retrieval tool or the endpoint retreival tool.
-
-The endpoints vector store contains the swagger definitions of all the endpoints on the Open Bank Project API
-The glossary vector store contains technical documents on many topics pertaining to Open Banking and the OBP API itself, such as how to authenticate or sign up.
-
-When calling the endpoint or glossary retrievers, formulate a relevant query. use the messages to come up with a short search query to search the vector database of either glossary items or partial swagger specs for API endpoints.
-The query needs to be in the form of a natural sounding question that conveys the semantic intent of the message, taking into account the message history
-
-If the mode is glossary_retrieval, optimise the query to search a glossary of technical documents for the Open Bank Project (OBP)
-If the mode is endpoint_retrieval, optimise the query to search through swagger schemas of different endpoints on the Open Bank Project (OBP) API
-
-Only output the tool choice, do not reply to the user.
-"""
-
-retrieval_decider_prompt_template = ChatPromptTemplate.from_messages(
-    [
-        SystemMessage(content=retrieval_decider_system_prompt),
-        MessagesPlaceholder("messages"),
-    ]
-)
-
-retrieval_decider_llm = get_llm(size='medium', temperature=0).bind_tools([glossary_retrieval_tool, endpoint_retrieval_tool])
-retrieval_decider_chain = retrieval_decider_prompt_template | retrieval_decider_llm
-
-
 ### Retrieval Query Formulator
 
 class QueryFormulatorOutput(BaseModel):
@@ -213,6 +181,8 @@ conversation_summarizer_system_prompt_template = PromptTemplate.from_template(
     You are a conversation summarizer that takes a list of messages and tries to summarize the conversation so far.\n
     The messages will consist of messages from the user, responses from the chatbot, and tool calls with responses.\n
     Try to summarize the conversation so far in a way that is concise and informative.\n
+    If there is important information in the tools or the messages,\n
+    such as a relevant bank ID user ID, or some other peice of data that is important to the users last message, include it in the summary message.
 
     {existing_summary_message}
 

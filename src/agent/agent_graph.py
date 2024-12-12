@@ -3,7 +3,7 @@ from langgraph.prebuilt import tools_condition, ToolNode
 from langgraph.checkpoint.memory import MemorySaver
 
 from agent.components.states import OpeyGraphState
-from agent.components.nodes import run_opey, run_retrieval_decider, human_review_node, run_summary_chain
+from agent.components.nodes import run_opey, human_review_node, run_summary_chain
 from agent.components.edges import should_summarize, needs_human_review
 from agent.components.tools import obp_requests, glossary_retrieval_tool, endpoint_retrieval_tool
 

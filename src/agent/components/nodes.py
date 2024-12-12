@@ -15,16 +15,8 @@ from agent.components.chains import opey_agent, query_formulator_chain
 from agent.components.sub_graphs.endpoint_retrieval.endpoint_retrieval_graph import endpoint_retrieval_graph
 from agent.components.sub_graphs.glossary_retrieval.glossary_retrieval_graph import glossary_retrieval_graph
 from agent.components.states import OpeyGraphState
-from agent.components.chains import retrieval_decider_chain, conversation_summarizer_chain
+from agent.components.chains import conversation_summarizer_chain
 from agent.utils.model_factory import get_llm
-
-async def run_retrieval_decider(state: OpeyGraphState):
-    state["current_state"] = "retrieval_decider"
-    messages = state["messages"]
-    output = await retrieval_decider_chain.ainvoke({"messages": messages})#
-    print(f"Retrieval decider: {output.tool_calls}")
-
-    return {"messages": output}
 
 async def run_summary_chain(state: OpeyGraphState):
     print("----- SUMMARIZING CONVERSATION -----")

@@ -58,6 +58,9 @@ async def obp_requests(method: str, path: str, body: str):
         print(f"Error fetching data from {url}: {e}")
         return
     
+    if response is None:
+        print("OBP returned 'None' response")
+        return
     json_response, status = response
 
     print("Response from OBP:\n", json.dumps(json_response, indent=2))

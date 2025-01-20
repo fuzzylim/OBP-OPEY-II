@@ -1,4 +1,6 @@
-from agent import opey_graph
+import os
+
+from service import opey_instance
 from langchain_core.runnables.graph import MermaidDrawMethod
 
 def generate_mermaid_diagram(path: str):
@@ -7,7 +9,9 @@ def generate_mermaid_diagram(path: str):
     path (str): The path to save the diagram
     """
     try:
-        graph_png = opey_graph.get_graph().draw_mermaid_png(
+        if os.path.exists(path):
+            os.remove(path)
+        graph_png = opey_instance.get_graph().draw_mermaid_png(
             draw_method=MermaidDrawMethod.API,
             output_file_path=path,
         )

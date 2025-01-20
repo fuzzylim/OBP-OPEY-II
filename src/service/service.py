@@ -18,7 +18,7 @@ from langchain_core.messages import ToolMessage
 from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
 
-from agent import opey_graph
+from agent import opey_graph, opey_graph_no_obp_tools
 from agent.components.chains import QueryFormulatorOutput
 from fastapi import WebSocket
 from schema import (
@@ -31,20 +31,28 @@ from schema import (
     ToolCallApproval,
 )
 
-#logging.basicConfig(level=logging.DEBUG)
-#logger = logging.getLogger(__name__)
+logger = logging.getLogger('uvicorn.error')
+
+if os.getenv("DISABLE_OBP_CALLING"):
+    logger.debug("Disabling OBP tools")
+    opey_instance = opey_graph_no_obp_tools
+else:
+    logger.debug("Enabling OBP tools")
+    opey_instance = opey_graph
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Construct agent with Sqlite checkpointer
     async with AsyncSqliteSaver.from_conn_string("checkpoints.db") as saver:
-        opey_graph.checkpointer = saver
-        app.state.agent = opey_graph
+        opey_instance.checkpointer = saver
+        app.state.agent = opey_instance
         yield
     # context manager will clean up the AsyncSqliteSaver on exit
 
 
 app = FastAPI(lifespan=lifespan)
+
+
 
 # TODO: change to implement our own authentication checking (also decide what auth to use)
 # NOTE: will be different when we use consents rather than a secret

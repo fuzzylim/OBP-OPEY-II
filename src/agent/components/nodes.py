@@ -1,6 +1,7 @@
 import json
 import uuid
 import os
+import logging
 
 from typing import List
 
@@ -18,8 +19,10 @@ from agent.components.states import OpeyGraphState
 from agent.components.chains import conversation_summarizer_chain
 from agent.utils.model_factory import get_llm
 
+logger = logging.getLogger("uvicorn.error")
+
 async def run_summary_chain(state: OpeyGraphState):
-    print("----- SUMMARIZING CONVERSATION -----")
+    logger.info("----- SUMMARIZING CONVERSATION -----")
     state["current_state"] = "summarize_conversation"
     total_tokens = state["total_tokens"]
     if not total_tokens:
@@ -39,7 +42,7 @@ async def run_summary_chain(state: OpeyGraphState):
     # After we summarize we reset the token_count to zero, this will be updated when Opey is next called
     summary = await conversation_summarizer_chain.ainvoke({"messages": messages, "existing_summary_message": summary_system_message})
 
-    print(f"\nSummary: {summary}\n")
+    logger.debug(f"\nSummary: {summary}\n")
 
     # Right now we delete all but the last two messages
     trimmed_messages = trim_messages(
@@ -107,6 +110,12 @@ async def run_opey(state: OpeyGraphState):
         total_tokens += ChatOpenAI(model='gpt-4o').get_num_tokens_from_messages(messages)
 
     return {"messages": response, "total_tokens": total_tokens}
+
+async def return_message(state: OpeyGraphState):
+    """
+    This dummy function is used as a node so that we can route to the message summary node in case that Opey 
+    """
+    pass
 
 async def human_review_node(state):
     state["current_state"] = "human_review"

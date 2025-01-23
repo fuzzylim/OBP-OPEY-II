@@ -7,6 +7,7 @@ from typing import Any
 from uuid import uuid4
 import asyncio
 import logging
+import jwt
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
@@ -17,6 +18,8 @@ from langchain_core.runnables.schema import StreamEvent
 from langchain_core.messages import ToolMessage
 from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
+
+from utils.obp_utils import obp_requests
 
 from agent import opey_graph, opey_graph_no_obp_tools
 from agent.components.chains import QueryFormulatorOutput
@@ -29,6 +32,7 @@ from schema import (
     UserInput,
     convert_message_content_to_string,
     ToolCallApproval,
+    ConsentAuthBody,
 )
 
 logger = logging.getLogger('uvicorn.error')
@@ -58,6 +62,7 @@ app = FastAPI(lifespan=lifespan)
 # NOTE: will be different when we use consents rather than a secret
 @app.middleware("http")
 async def check_auth_header(request: Request, call_next: Callable) -> Response:
+    logger.debug("This is coming from the auth middleware")
     if auth_secret := os.getenv("AUTH_SECRET"):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
@@ -65,6 +70,8 @@ async def check_auth_header(request: Request, call_next: Callable) -> Response:
         if auth_header[7:] != auth_secret:
             return Response(status_code=401, content="Invalid token")
     return await call_next(request)
+
+
 
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
     run_id = uuid4()
@@ -96,22 +103,7 @@ def _remove_tool_calls(content: str | list[str | dict]) -> str | list[str | dict
         if isinstance(content_item, str) or content_item["type"] != "tool_use"
     ]
 
-# Global dictionary to track user approvals
-_approval_condition = asyncio.Condition()  # Single instance
-_pending_approvals = {}
-
-async def wait_for_user_approval(thread_id: str) -> str:
-    print(f"[Debug] Wait for approval event loop: {id(asyncio.get_running_loop())}")
-    async with _approval_condition:
-        print(f"[Waiter] Waiting for approval of {thread_id}")
-        while thread_id not in _pending_approvals.keys():
-            await _approval_condition.wait()
-            print(f"[Waiter] Woke up for {thread_id}, checking condition")
-            print(f"[Waiter] Pending approvals: {_pending_approvals}")
-        print(f"[Waiter] Returning {_pending_approvals[thread_id]}")
-        return _pending_approvals.pop(thread_id)
     
-
 async def _process_stream_event(event: StreamEvent, user_input: StreamInput | ToolCallApproval, run_id: str) -> AsyncGenerator[str, None]:
     """Helper to process stream events consistently"""
     if not event:
@@ -299,3 +291,16 @@ async def feedback(feedback: Feedback) -> FeedbackResponse:
         **kwargs,
     )
     return FeedbackResponse()
+
+@app.post("/auth")
+async def auth(consent_auth_body: ConsentAuthBody):
+    """ 
+    Authorize Opey using an OBP consent
+    """
+    version = os.getenv("OBP_API_VERSION")
+    consent_challenge_answer_path = f"/obp/{version}/banks/gh.29.uk/consents/{consent_auth_body.consent_id}/challenge"
+    
+    # Check consent challenge answer
+    response = await obp_requests("POST", consent_challenge_answer_path, json.dumps({"answer": consent_auth_body.consent_challenge_answer}))
+    print(response)
+    return 

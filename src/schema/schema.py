@@ -190,3 +190,16 @@ class ToolCallApproval(BaseModel):
         description="Tool call ID to approve or deny.",
         examples=["call_Jja7J89XsjrOLA5r!MEOW!SL"],
     )
+
+class ConsentAuthBody(BaseModel):
+    consent_id: str = Field(
+        description="OBP Consent ID to authorize."
+    )
+    consent_challenge_answer: str = Field(
+        description="Answer to the consent challenge."
+    )
+
+class AuthReponse(BaseModel):
+    jwt: str = Field(
+        description="JWT token for the user."
+    )

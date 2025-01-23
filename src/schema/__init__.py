@@ -7,6 +7,7 @@ from schema.schema import (
     UserInput,
     convert_message_content_to_string,
     ToolCallApproval,
+    ConsentAuthBody,
 )
 
 __all__ = [
@@ -18,4 +19,5 @@ __all__ = [
     "FeedbackResponse",
     "convert_message_content_to_string",
     "ToolCallApproval",
+    "ConsentAuthBody",
 ]

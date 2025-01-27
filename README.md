@@ -10,7 +10,9 @@ The easiest way to do this is using _poetry_. Install using the [reccomended met
 
 If you havent got a venv already then set that up, if you don't do this you will have to prepend `poetry run` before running the main python scripts that you run here as poetry will create a new venv for you if it does not detect one.
 
-Then you can run `poetry install` in the venv to install dependencies.
+Note: You can also then run commands by first activating `poetry shell` which should activate the venv created by poetry
+
+Run `poetry install` in the venv to install dependencies.
 ### 2. Creating the vector database
 Create the 'data' folder by running 
 ```
@@ -68,9 +70,11 @@ OBP_CONSUMER_KEY="your-obp-consumer-key"
 ```
 
 ## Running
-Run the backend agent with `python src/run_service.py` or `poetry run python src/run_service.py` if you did not create a venv at the start
+Activate the poetry venv using `poetry shell` in the current directory
 
-Run the frontend streamlit app with `streamlit run src/streamlit_app.py` or same as above if you did not create the venv.
+Run the backend agent with `python src/run_service.py`
+
+In a separate terminal run the frontend streamlit app (within another poetry shell) with `streamlit run src/streamlit_app.py`
 
 The best way to interact with the agent is through the streamlit app, but it also functions as a rest API whose docs can be found at `http://127.0.0.1:8000/docs`
 

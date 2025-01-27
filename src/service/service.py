@@ -7,10 +7,11 @@ from typing import Any
 from uuid import uuid4
 import asyncio
 import logging
-import jwt
+
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from langchain_core.runnables import RunnableConfig
@@ -20,6 +21,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langsmith import Client as LangsmithClient
 
 from utils.obp_utils import obp_requests
+from .auth import sign_jwt
 
 from agent import opey_graph, opey_graph_no_obp_tools
 from agent.components.chains import QueryFormulatorOutput
@@ -56,7 +58,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(lifespan=lifespan)
 
-
+# Setup CORS policy
+if cors_allowed_origins := os.getenv("CORS_ALLOWED_ORIGINS"):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    raise ValueError("CORS_ALLOWED_ORIGINS environment variable must be set")
 
 # TODO: change to implement our own authentication checking (also decide what auth to use)
 # NOTE: will be different when we use consents rather than a secret
@@ -70,8 +82,6 @@ async def check_auth_header(request: Request, call_next: Callable) -> Response:
         if auth_header[7:] != auth_secret:
             return Response(status_code=401, content="Invalid token")
     return await call_next(request)
-
-
 
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
     run_id = uuid4()
@@ -297,10 +307,16 @@ async def auth(consent_auth_body: ConsentAuthBody):
     """ 
     Authorize Opey using an OBP consent
     """
+    logger.debug("Authorizing Opey using an OBP consent")
     version = os.getenv("OBP_API_VERSION")
     consent_challenge_answer_path = f"/obp/{version}/banks/gh.29.uk/consents/{consent_auth_body.consent_id}/challenge"
     
     # Check consent challenge answer
     response = await obp_requests("POST", consent_challenge_answer_path, json.dumps({"answer": consent_auth_body.consent_challenge_answer}))
     print(response)
-    return 
+    payload = {
+        "consent_id": consent_auth_body.consent_id,
+    }
+
+    jwt = sign_jwt(payload)
+    return {"jwt": jwt}

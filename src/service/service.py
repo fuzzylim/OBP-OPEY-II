@@ -23,7 +23,7 @@ from utils.obp_utils import obp_requests
 
 from agent import opey_graph, opey_graph_no_obp_tools
 from agent.components.chains import QueryFormulatorOutput
-from fastapi import WebSocket
+from starlette.background import BackgroundTask
 from schema import (
     ChatMessage,
     Feedback,
@@ -71,6 +71,20 @@ async def check_auth_header(request: Request, call_next: Callable) -> Response:
             return Response(status_code=401, content="Invalid token")
     return await call_next(request)
 
+
+@app.middleware("http")
+async def log_request_response(request: Request, call_next: Callable):
+    request_body = await request.body()
+
+    response = await call_next(request)
+    chunks = []
+    async for chunk in response.body_iterator:
+        chunks.append(chunk)
+    res_body = b''.join(chunks)
+
+    logger.info(f"Request: {request.method} {request.headers} {request.url} {request_body}")
+    logger.info(f"Response: {response.status_code} {res_body}")
+    return response
 
 
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:

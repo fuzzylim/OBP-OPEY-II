@@ -199,7 +199,7 @@ class ConsentAuthBody(BaseModel):
         description="Answer to the consent challenge."
     )
 
-class AuthReponse(BaseModel):
-    jwt: str = Field(
-        description="JWT token for the user."
+class AuthResponse(BaseModel):
+    success: bool = Field(
+        description="Whether Auth was successful or not"
     )

@@ -35,6 +35,7 @@ from schema import (
     convert_message_content_to_string,
     ToolCallApproval,
     ConsentAuthBody,
+    AuthResponse,
 )
 
 logger = logging.getLogger('uvicorn.error')
@@ -74,29 +75,33 @@ else:
 # NOTE: will be different when we use consents rather than a secret
 @app.middleware("http")
 async def check_auth_header(request: Request, call_next: Callable) -> Response:
+    request_body = await request.body()
     logger.debug("This is coming from the auth middleware")
+    logger.debug(f"Request: {request_body}")
     if auth_secret := os.getenv("AUTH_SECRET"):
         auth_header = request.headers.get("Authorization")
         if not auth_header or not auth_header.startswith("Bearer "):
             return Response(status_code=401, content="Missing or invalid token")
         if auth_header[7:] != auth_secret:
             return Response(status_code=401, content="Invalid token")
-    return await call_next(request)
-
-
-@app.middleware("http")
-async def log_request_response(request: Request, call_next: Callable):
-    request_body = await request.body()
-
     response = await call_next(request)
-    chunks = []
-    async for chunk in response.body_iterator:
-        chunks.append(chunk)
-    res_body = b''.join(chunks)
-
-    logger.info(f"Request: {request.method} {request.headers} {request.url} {request_body}")
-    logger.info(f"Response: {response.status_code} {res_body}")
+    logger.debug(f"Response: {response}")
     return response
+
+
+# @app.middleware("http")
+# async def log_request_response(request: Request, call_next: Callable):
+#     request_body = await request.body()
+
+#     response = await call_next(request)
+#     chunks = []
+#     async for chunk in response.body_iterator:
+#         chunks.append(chunk)
+#     res_body = b''.join(chunks)
+
+#     logger.info(f"Request: {request.method} {request.headers} {request.url} {request_body}")
+#     logger.info(f"Response: {response.status_code} {res_body}")
+#     return response
 
 
 def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
@@ -319,7 +324,7 @@ async def feedback(feedback: Feedback) -> FeedbackResponse:
     return FeedbackResponse()
 
 @app.post("/auth")
-async def auth(consent_auth_body: ConsentAuthBody):
+async def auth(consent_auth_body: ConsentAuthBody, response: Response):
     """ 
     Authorize Opey using an OBP consent
     """
@@ -328,11 +333,28 @@ async def auth(consent_auth_body: ConsentAuthBody):
     consent_challenge_answer_path = f"/obp/{version}/banks/gh.29.uk/consents/{consent_auth_body.consent_id}/challenge"
     
     # Check consent challenge answer
-    response = await obp_requests("POST", consent_challenge_answer_path, json.dumps({"answer": consent_auth_body.consent_challenge_answer}))
-    print(response)
-    payload = {
-        "consent_id": consent_auth_body.consent_id,
-    }
+    try:
+        obp_response = await obp_requests("POST", consent_challenge_answer_path, json.dumps({"answer": consent_auth_body.consent_challenge_answer}))
+    except Exception as e:
+        logger.error(f"Error in /auth endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-    jwt = sign_jwt(payload)
-    return {"jwt": jwt}
+    if obp_response and not (200 <= obp_response.status < 300):
+        logger.debug("Welp, we got an error from OBP")
+        message = await obp_response.text()
+        raise HTTPException(status_code=obp_response.status, detail=message)
+    
+    try:
+        payload = {
+            "consent_id": consent_auth_body.consent_id,
+        }
+        opey_jwt = sign_jwt(payload)
+    except Exception as e:
+        logger.debug("Looks like signing the JWT failed OMG")
+        logger.error(f"Error in /auth endpoint: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+    print("got consent jwt")
+    # Set the JWT cookie
+    response.set_cookie(key="jwt", value=opey_jwt, httponly=False, samesite='lax', secure=False)
+    return AuthResponse(success=True)

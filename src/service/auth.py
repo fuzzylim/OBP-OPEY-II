@@ -7,4 +7,7 @@ load_dotenv()
 
 def sign_jwt(payload: dict) -> str:
     """Sign a JWT with the given payload."""
-    return jwt.encode(payload, os.getenv("JWT_SECRET"), algorithm="HS256")
+    secret = os.getenv("JWT_SIGNING_SECRET")
+    if not secret:
+        raise ValueError("JWT_SIGNING_SECRET not set in environment variables. Please set it.")
+    return jwt.encode(payload, secret, algorithm="HS256")

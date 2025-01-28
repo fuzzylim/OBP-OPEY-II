@@ -38,8 +38,7 @@ async def _async_request(method: str, url: str, body: Any | None, headers: dict[
         async with aiohttp.ClientSession() as session:
             async with session.request(method, url, json=body, headers=headers) as response:
                 json_response = await response.json()
-                status = response.status
-                return json_response, status
+                return response, json_response
             
     except aiohttp.ClientError as e:
         print(f"Error fetching data from {url}: {e}")
@@ -83,22 +82,20 @@ async def obp_requests(method: str, path: str, body: str):
         json_body = json.loads(body)
         
     try:
-        response = await _async_request(method, url, json_body, headers=headers)
+        r = await _async_request(method, url, json_body, headers=headers)
     except Exception as e:
         print(f"Error fetching data from {url}: {e}")
         return
     
-    if response is None:
-        print("OBP returned 'None' response")
-        return
-    json_response, status = response
-
-    print("Response from OBP:\n", json.dumps(json_response, indent=2))
     
-    if status == 200:
-        return json_response
-    else:
-        print("Error fetching data from OBP:", json_response)
-        return json_response
+    if r == None:
+        raise ValueError("No response received from OBP")
+
+    response, json_response = r 
+     
+
+    print("Response from OBP:\n", response.status, json_response)
+    
+    return response
     
     

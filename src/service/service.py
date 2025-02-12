@@ -4,7 +4,7 @@ import warnings
 from collections.abc import AsyncGenerator, Callable
 from contextlib import asynccontextmanager
 from typing import Any
-from uuid import uuid4
+import uuid
 import asyncio
 import logging
 
@@ -104,9 +104,9 @@ async def check_auth_header(request: Request, call_next: Callable) -> Response:
 #     return response
 
 
-def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
-    run_id = uuid4()
-    thread_id = user_input.thread_id or str(uuid4())
+def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], uuid.UUID]:
+    run_id = uuid.uuid4()
+    thread_id = user_input.thread_id or str(uuid.uuid4())
     # If this is a tool call approval, we don't need to send any input to the agent.
     if user_input.is_tool_call_approval:
         _input = None
@@ -117,10 +117,10 @@ def _parse_input(user_input: UserInput) -> tuple[dict[str, Any], str]:
     kwargs = {
         "input": _input,
         "config": RunnableConfig(
-            configurable={"thread_id": thread_id, "model": user_input.model}, run_id=run_id
+            configurable={"thread_id": thread_id}, run_id=run_id
         ),
     }
-    return kwargs, run_id, thread_id
+    return kwargs, run_id
 
 
 def _remove_tool_calls(content: str | list[str | dict]) -> str | list[str | dict]:
@@ -186,6 +186,14 @@ async def _process_stream_event(event: StreamEvent, user_input: StreamInput | To
             yield f"data: {json.dumps({'type': 'token', 'content': convert_message_content_to_string(content)})}\n\n"
 
 
+@app.get("/status")
+async def get_status() -> dict[str, str]:
+    """Health check endpoint."""
+    if not app.state.agent:
+        raise HTTPException(status_code=500, detail="Agent not initialized")
+    
+    return {"status": "ok"}
+
 @app.post("/invoke")
 async def invoke(user_input: UserInput) -> ChatMessage:
     """
@@ -199,9 +207,11 @@ async def invoke(user_input: UserInput) -> ChatMessage:
     try:
         response = await agent.ainvoke(**kwargs)
         output = ChatMessage.from_langchain(response["messages"][-1])
+        logger.info(f"Replied to thread_id {kwargs['config']["configurable"]['thread_id']} with message:\n\n {output.content}\n")
         output.run_id = str(run_id)
         return output
     except Exception as e:
+        logging.error(f"Error invoking agent: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -212,18 +222,18 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
     This is the workhorse method for the /stream endpoint.
     """
     agent: CompiledStateGraph = app.state.agent
-    kwargs, run_id, thread_id = _parse_input(user_input)
-    thread = {"configurable": {"thread_id": thread_id}}
+    kwargs, run_id = _parse_input(user_input)
+    config = kwargs["config"]
 
     print(f"------------START STREAM-----------\n\n")
     # Process streamed events from the graph and yield messages over the SSE stream.
     async for event in agent.astream_events(**kwargs, version="v2"):
-        async for msg in _process_stream_event(event, user_input, run_id):
+        async for msg in _process_stream_event(event, user_input, str(run_id)):
             yield msg
 
     # Interruption for human in the loop
     # Wait for user approval via HTTP request
-    agent_state = await agent.aget_state(thread)
+    agent_state = await agent.aget_state(config)
     messages = agent_state.values.get("messages", [])
     print(f"next node: {agent_state.next}")
     tool_call_message = messages[-1] if messages else None
@@ -265,6 +275,8 @@ async def stream_agent(user_input: StreamInput) -> StreamingResponse:
     Use thread_id to persist and continue a multi-turn conversation. run_id kwarg
     is also attached to all messages for recording feedback.
     """
+    logger.debug(f"Received stream request: {user_input}")
+
     return StreamingResponse(message_generator(user_input), media_type="text/event-stream")
 
 
@@ -295,7 +307,6 @@ async def user_approval(user_approval_response: ToolCallApproval, thread_id: str
     
     user_input = StreamInput(
         message="",
-        model="",
         thread_id=thread_id,
         is_tool_call_approval=True,
     )

@@ -33,11 +33,6 @@ class UserInput(BaseModel):
         description="User input to the agent.",
         examples=["What is the weather in Tokyo?"],
     )
-    model: str = Field(
-        description="LLM Model to use for the agent.",
-        default="gpt-4o-mini",
-        examples=["gpt-4o-mini", "llama-3.1-70b"],
-    )
     thread_id: str | None = Field(
         description="Thread ID to persist and continue a multi-turn conversation.",
         default=None,

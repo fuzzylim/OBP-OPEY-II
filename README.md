@@ -8,11 +8,14 @@ An agentic version of the Opey chatbot for Open Bank Project that uses the [Lang
 ### 1. Installing the dependencies
 The easiest way to do this is using _poetry_. Install using the [reccomended method](https://python-poetry.org/docs/) rather than trying to manually install.
 
-If you havent got a venv already then set that up, if you don't do this you will have to prepend `poetry run` before running the main python scripts that you run here as poetry will create a new venv for you if it does not detect one.
+Run `poetry install` in the top level directory (where your pyproject.toml lives) to install dependencies and get poetry to create a venv for you.
 
-Note: You can also then run commands by first activating `poetry shell` which should activate the venv created by poetry
+You can also then run commands by first activating `poetry shell` which should activate the venv created by poetry. This is a neat way to get into the venv created by poetry.
 
-Run `poetry install` in the venv to install dependencies.
+NOTE: Poetry does not come with the `shell` command pre-installed
+After installing poetry, install the poetry shell plugin with `poetry self add poetry-plugin-shell` and you should be good to go.
+
+
 ### 2. Creating the vector database
 Create the 'data' folder by running 
 ```

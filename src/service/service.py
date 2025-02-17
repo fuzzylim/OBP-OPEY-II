@@ -40,11 +40,11 @@ from schema import (
 
 logger = logging.getLogger('uvicorn.error')
 
-if os.getenv("DISABLE_OBP_CALLING"):
-    logger.debug("Disabling OBP tools")
+if os.getenv("DISABLE_OBP_CALLING") == "true":
+    logger.info("Disabling OBP tools: Calls to the OBP-API will not be available")
     opey_instance = opey_graph_no_obp_tools
 else:
-    logger.debug("Enabling OBP tools")
+    logger.info("Enabling OBP tools: Calls to the OBP-API will be available")
     opey_instance = opey_graph
 
 @asynccontextmanager

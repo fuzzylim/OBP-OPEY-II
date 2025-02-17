@@ -1,5 +1,7 @@
 import os
 
+from langchain_core.documents import Document
+from typing import List
 from agent.components.sub_graphs.endpoint_retrieval.components.states import OutputState
 from agent.components.sub_graphs.retriever_config import setup_chroma_vector_store, setup_retriever
 from agent.components.sub_graphs.endpoint_retrieval.components.chains import retrieval_grader, endpoint_question_rewriter
@@ -42,8 +44,22 @@ async def retrieve_endpoints(state):
 async def return_documents(state) -> OutputState:
     """Return the relevant documents"""
     print("---RETRUN RELEVANT DOCUMENTS---")
-    relevant_documents = state["relevant_documents"]
-    return {"relevant_documents": relevant_documents}
+    relevant_documents: List[Document] = state["relevant_documents"]
+
+    output_docs = []
+
+    for doc in relevant_documents:
+        output_docs.append(
+            {
+                "method": doc.metadata["method"],
+                "path": doc.metadata["path"],
+                "operation_id": doc.metadata["operation_id"],
+                "documentation": doc.page_content,
+            }
+        )
+        
+
+    return {"output_documents": output_docs}
 
 
 async def grade_documents(state):

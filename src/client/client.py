@@ -146,8 +146,6 @@ class AgentClient:
         request = StreamInput(message=message, stream_tokens=stream_tokens)
         if thread_id:
             request.thread_id = thread_id
-        if model:
-            request.model = model
         with httpx.stream(
             "POST",
             f"{self.base_url}/stream",
@@ -195,8 +193,6 @@ class AgentClient:
         request = StreamInput(message=message, stream_tokens=stream_tokens)
         if thread_id:
             request.thread_id = thread_id
-        if model:
-            request.model = model
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "POST",

@@ -1,5 +1,5 @@
 from typing_extensions import TypedDict
-from typing import List, Annotated
+from typing import List, Annotated, Dict
 from agent.components.sub_graphs.endpoint_retrieval.components.reducers import add_docs
 from langgraph.graph import MessagesState
 from pydantic import BaseModel, Field
@@ -37,4 +37,4 @@ class OutputState(TypedDict):
     """
     Graph returns relevant endpoints
     """
-    relevant_documents: Annotated[List[str], add_docs]
+    output_documents: List[Dict[str, str]]

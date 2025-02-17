@@ -1,6 +1,7 @@
 import asyncio
 import os
 from collections.abc import AsyncGenerator
+import json
 
 import streamlit as st
 from streamlit.runtime.scriptrunner import get_script_run_ctx
@@ -31,7 +32,7 @@ APP_TITLE = "Opey Agent Service"
 
 @st.cache_resource
 def get_agent_client() -> AgentClient:
-    agent_url = os.getenv("AGENT_URL", "http://localhost:8000")
+    agent_url = os.getenv("AGENT_URL", "http://localhost:5000")
     return AgentClient(agent_url)
 
 
@@ -295,34 +296,7 @@ async def draw_messages(
 
 
                         print(f"Waiting for {len(pending_tool_calls)} call(s) to finish\n")
-                        # Expect one ToolMessage for each tool call.
-                        # if not st.session_state.approval_pending:
-                        #     for _ in range(len(pending_tool_calls)):
-                        #         tool_result: ChatMessage | str | dict = await anext(messages_agen)
-                        #         if isinstance(tool_result, dict) and tool_result["type"] == "approval_request":
-                        #             st.session_state.approval_tool_call = tool_result["for"]
-                        #             st.session_state.approval_pending = True
-                        #             st.session_state.approval_thread_id = thread_id
-                        #         if isinstance(tool_result, str):
-                        #             st.error(f"Tool returned is a string {tool_result}")
-                        #             st.write(tool_result)
-                        #             st.stop()
-                        #         if isinstance(tool_result, ChatMessage) and tool_result.type != "tool":
-                        #             st.error(f"Unexpected ChatMessage type for tool result: {tool_result.type}")
-                        #             st.write(tool_result)
-                        #             st.stop()
-
-                        #         # Record the message if it's new, and update the correct
-                        #         # status container with the result
-                        #         if not isinstance(tool_result, dict):
-                        #             if is_new:
-                        #                 st.session_state.messages.append(tool_result)
-                        #             status = pending_tool_calls[tool_result.tool_call_id]
-                        #             status.write("Output:")
-                        #             status.write(tool_result.content)
-                        #             status.update(state="complete")
-                        #             st.session_state.completed_tool_calls[tool_result.tool_call_id] = pending_tool_calls.pop(tool_result.tool_call_id)
-
+                        
             case "tool":
                 pending_tool_calls = st.session_state.pending_tool_calls
                 completed_tool_calls = st.session_state.completed_tool_calls
@@ -338,7 +312,13 @@ async def draw_messages(
                             st.session_state.messages.append(msg)
                         status = pending_tool_calls[msg.tool_call_id]
                         status.write("Output:")
-                        status.write(msg.content)
+                        try:
+                            json_formatted = json.loads(msg.content)
+                        except ValueError as e:
+                            print(f"Error parsing tool output as JSON: {e}")
+                            json_formatted = msg.content
+
+                        status.write(json_formatted)
                         status.update(state="complete")
                         completed_tool_calls[msg.tool_call_id] = pending_tool_calls.pop(msg.tool_call_id)
                 # Handle other message types if necessary

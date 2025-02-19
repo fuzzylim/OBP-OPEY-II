@@ -10,9 +10,11 @@ The easiest way to do this is using _poetry_. Install using the [reccomended met
 
 Run `poetry install` in the top level directory (where your pyproject.toml lives) to install dependencies and get poetry to create a venv for you.
 
+> **_NOTE:_**  If you get an error that your python version is not supported, consider using a python version management system like [PyEnv](https://github.com/pyenv/pyenv) to install the compatible version of python. Else just upgrade the global python version if you don't care about other packages potentially breaking.
+
 You can also then run commands by first activating `poetry shell` which should activate the venv created by poetry. This is a neat way to get into the venv created by poetry.
 
-NOTE: Poetry does not come with the `shell` command pre-installed
+> **_NOTE:_** Poetry does not come with the `shell` command pre-installed
 After installing poetry, install the poetry shell plugin with `poetry self add poetry-plugin-shell` and you should be good to go.
 
 

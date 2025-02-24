@@ -293,7 +293,7 @@ async def user_approval(user_approval_response: ToolCallApproval, thread_id: str
         await agent.aupdate_state(
             {"configurable": {"thread_id": thread_id}},
             {"messages": [ToolMessage(content="User denied request to OBP API", tool_call_id=user_approval_response.tool_call_id)]},
-            as_node="obp_requests_tools",
+            as_node="tools",
         )
     else:
         # If approved, just continue to the OBP requests node

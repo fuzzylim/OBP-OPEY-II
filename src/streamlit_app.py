@@ -1,4 +1,11 @@
 import asyncio
+
+async def anext(iterator, default=None):
+    try:
+        return await iterator.__anext__()
+    except StopAsyncIteration:
+        return default
+
 import os
 from collections.abc import AsyncGenerator
 import json
@@ -11,6 +18,7 @@ from client import AgentClient
 from schema import ChatMessage, ToolCallApproval
 
 from utils.utils import generate_mermaid_diagram
+from utils.chat_log import log_chat_message
 
 # A Streamlit app for interacting with the langgraph agent via a simple chat interface.
 # The app has three main functions which are all run async:
@@ -159,6 +167,7 @@ async def main() -> None:
 
     # Generate new message if the user provided new input
     if user_input := st.chat_input():
+        log_chat_message(user_input)
         messages.append(ChatMessage(type="human", content=user_input))
         st.chat_message("human").write(user_input)
         agent_client = get_agent_client()
@@ -176,6 +185,7 @@ async def main() -> None:
                 model=model,
                 thread_id=get_script_run_ctx().session_id,
             )
+            log_chat_message(response.content)
             messages.append(response)
             st.chat_message("ai").write(response.content)
         st.rerun()  # Clear stale containers

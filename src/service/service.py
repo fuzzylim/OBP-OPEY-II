@@ -38,6 +38,8 @@ from schema import (
     AuthResponse,
 )
 
+from utils.chat_log import log_chat_message
+
 logger = logging.getLogger('uvicorn.error')
 
 if os.getenv("DISABLE_OBP_CALLING") == "true":
@@ -246,9 +248,8 @@ async def message_generator(user_input: StreamInput) -> AsyncGenerator[str, None
         print(f"Waiting for approval of tool call: {tool_call}\n")
 
         tool_approval_message = ChatMessage(type="tool", tool_approval_request=True, tool_call_id=tool_call["id"], content="", tool_calls=[tool_call])
-
-        yield f"data: {json.dumps({'type': 'message', "content": tool_approval_message.model_dump()})}\n\n"
-    
+        log_chat_message(tool_approval_message.content)
+        yield f"data: {json.dumps({'type': 'message', 'content': tool_approval_message.model_dump()})}\n\n"
 
     yield "data: [DONE]\n\n"
 

@@ -160,4 +160,36 @@ graph TD
     A -->|Uses| D[schema]
     A -->|Uses| E[service]
     A -->|Uses| F[utils]
-```
+    
+    %% External Services
+    E -->|Uses| T[OpenAI API]
+    E -->|Uses| U[Anthropic API]
+    E -->|Uses| V[Ollama API]
+    E -->|Uses| W[Open Bank Project API]
+    W -->|Endpoint| W1[GET /obp/v4.0.0/my/accounts]
+    W -->|Endpoint| W2[GET /obp/v4.0.0/my/accounts/&#123;account_id&#125;/transactions]
+    W -->|Endpoint| W3[POST /obp/v4.0.0/banks/&#123;bank_id&#125;/accounts/&#123;account_id&#125;/payments]
+    W -->|Endpoint| W4[GET /obp/v4.0.0/banks/&#123;bank_id&#125;/accounts/&#123;account_id&#125;/payments/&#123;payment_id&#125;]
+    W -->|Endpoint| W5[POST /obp/v4.0.0/banks/&#123;bank_id&#125;/accounts/&#123;account_id&#125;/transactions/&#123;transaction_id&#125;/metadata/tags]
+    W -->|Endpoint| W6[POST /obp/v4.0.0/banks/&#123;bank_id&#125;/accounts/&#123;account_id&#125;/metadata/comments]
+    W -->|Endpoint| W7[GET /obp/v4.0.0/customers]
+    W -->|Endpoint| W8[GET /obp/v4.0.0/customers/&#123;customer_id&#125;]
+    E -->|Uses| X[Langchain API]
+
+## Open Banking API Endpoints
+
+### Account Information
+- `GET /obp/v4.0.0/my/accounts` - Retrieve a list of accounts for the authenticated user.
+- `GET /obp/v4.0.0/my/accounts/{account_id}/transactions` - Retrieve transactions for a specific account.
+
+### Payments
+- `POST /obp/v4.0.0/banks/{bank_id}/accounts/{account_id}/payments` - Create a new payment order.
+- `GET /obp/v4.0.0/banks/{bank_id}/accounts/{account_id}/payments/{payment_id}` - Retrieve the status of a specific payment.
+
+### Metadata
+- `POST /obp/v4.0.0/banks/{bank_id}/accounts/{account_id}/transactions/{transaction_id}/metadata/tags` - Add tags to a transaction.
+- `POST /obp/v4.0.0/banks/{bank_id}/accounts/{account_id}/metadata/comments` - Add comments to an account.
+
+### Customer Information
+- `GET /obp/v4.0.0/customers` - Retrieve a list of customers.
+- `GET /obp/v4.0.0/customers/{customer_id}` - Retrieve details of a specific customer.
